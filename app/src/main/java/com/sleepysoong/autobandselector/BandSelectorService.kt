@@ -22,6 +22,18 @@ class BandSelectorService : AccessibilityService() {
 
         if (macroMode.isEmpty() || targetBand.isEmpty()) return
 
+        // 0. Dialer input auto-completion
+        // Samsung dialer digits field contains "319712358" if opened from our app.
+        // We find it and replace it with "*#319712358#" to trigger the secret code automatically.
+        val digitsNode = findNodeByText(rootNode, "319712358")
+        if (digitsNode != null) {
+            Log.d("BandSelectorBot", "Found dialer digits node, entering secret code prefix and suffix")
+            val arguments = Bundle()
+            arguments.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "*#319712358#")
+            digitsNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
+            return
+        }
+
         // 1. Password Auto-Input (Depends on Device firmware Carrier)
         val isPasswordScreen = findNodeByText(rootNode, "Password") != null || 
                                findNodeByText(rootNode, "비밀번호") != null
@@ -116,6 +128,9 @@ class BandSelectorService : AccessibilityService() {
             
             // Apply selection
             selectionHeader.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            
+            // Mark as applied to let MainActivity proceed
+            prefs.edit().putBoolean("band_setting_applied", true).apply()
             
             // Return back to MainActivity to continue the speed test
             if (macroMode == "SCANNING") {

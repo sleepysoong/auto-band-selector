@@ -1,9 +1,9 @@
 -- Merging decision tree log ---
 manifest
-ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:2:1-38:12
-INJECTED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:2:1-38:12
-INJECTED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:2:1-38:12
-INJECTED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:2:1-38:12
+ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:2:1-50:12
+INJECTED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:2:1-50:12
+INJECTED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:2:1-50:12
+INJECTED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:2:1-50:12
 MERGED from [com.google.android.material:material:1.11.0] /root/.gradle/caches/transforms-3/3c6da16fc08c5e7b7caed394bbbfefaa/transformed/material-1.11.0/AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /root/.gradle/caches/transforms-3/488aad099d5ebc6b5042a6b3b7d174ef/transformed/constraintlayout-2.1.4/AndroidManifest.xml:2:1-11:12
 MERGED from [androidx.appcompat:appcompat-resources:1.6.1] /root/.gradle/caches/transforms-3/2fd0cb4fe98f737439d366f57b52369e/transformed/appcompat-resources-1.6.1/AndroidManifest.xml:17:1-22:12
@@ -58,9 +58,13 @@ uses-permission#android.permission.INTERNET
 ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:4:5-67
 	android:name
 		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:4:22-64
+uses-permission#com.sec.android.app.hiddenmenu.permission.KEYSTRING
+ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:6:5-91
+	android:name
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:6:22-88
 application
-ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:6:5-36:19
-INJECTED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:6:5-36:19
+ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:8:5-48:19
+INJECTED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:8:5-48:19
 MERGED from [com.google.android.material:material:1.11.0] /root/.gradle/caches/transforms-3/3c6da16fc08c5e7b7caed394bbbfefaa/transformed/material-1.11.0/AndroidManifest.xml:22:5-20
 MERGED from [com.google.android.material:material:1.11.0] /root/.gradle/caches/transforms-3/3c6da16fc08c5e7b7caed394bbbfefaa/transformed/material-1.11.0/AndroidManifest.xml:22:5-20
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /root/.gradle/caches/transforms-3/488aad099d5ebc6b5042a6b3b7d174ef/transformed/constraintlayout-2.1.4/AndroidManifest.xml:9:5-20
@@ -82,57 +86,73 @@ MERGED from [androidx.startup:startup-runtime:1.1.1] /root/.gradle/caches/transf
 	android:appComponentFactory
 		ADDED from [androidx.core:core:1.12.0] /root/.gradle/caches/transforms-3/440a64c1659b3784956be1ef27019da1/transformed/core-1.12.0/AndroidManifest.xml:28:18-86
 	android:supportsRtl
-		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:11:9-35
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:13:9-35
 	android:label
-		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:9:9-41
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:11:9-41
 	android:roundIcon
-		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:10:9-54
-	android:icon
-		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:8:9-49
-	android:allowBackup
-		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:7:9-35
-	android:theme
 		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:12:9-54
+	android:icon
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:10:9-49
+	android:allowBackup
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:9:9-35
+	android:theme
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:14:9-54
 activity#com.sleepysoong.autobandselector.MainActivity
-ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:14:9-23:20
+ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:16:9-25:20
 	android:exported
-		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:16:13-36
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:18:13-36
 	android:supportsPictureInPicture
-		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:17:13-52
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:19:13-52
 	android:configChanges
-		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:18:13-91
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:20:13-91
 	android:name
-		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:15:13-41
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:17:13-41
 intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
-ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:19:13-22:29
+ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:21:13-24:29
 action#android.intent.action.MAIN
-ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:20:17-69
+ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:22:17-69
 	android:name
-		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:20:25-66
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:22:25-66
 category#android.intent.category.LAUNCHER
-ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:21:17-77
+ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:23:17-77
 	android:name
-		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:21:27-74
-service#com.sleepysoong.autobandselector.BandSelectorService
-ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:25:9-35:19
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:23:27-74
+provider#androidx.core.content.FileProvider
+ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:27:9-35:20
+	android:grantUriPermissions
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:31:13-47
+	android:authorities
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:29:13-80
 	android:exported
-		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:28:13-36
-	android:permission
-		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:27:13-79
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:30:13-37
 	android:name
-		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:26:13-48
-intent-filter#action:name:android.accessibilityservice.AccessibilityService
-ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:29:13-31:29
-action#android.accessibilityservice.AccessibilityService
-ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:30:17-92
-	android:name
-		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:30:25-89
-meta-data#android.accessibilityservice
-ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:32:13-34:72
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:28:13-62
+meta-data#android.support.FILE_PROVIDER_PATHS
+ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:32:13-34:54
 	android:resource
-		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:34:17-69
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:34:17-51
 	android:name
-		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:33:17-60
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:33:17-67
+service#com.sleepysoong.autobandselector.BandSelectorService
+ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:37:9-47:19
+	android:exported
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:40:13-36
+	android:permission
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:39:13-79
+	android:name
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:38:13-48
+intent-filter#action:name:android.accessibilityservice.AccessibilityService
+ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:41:13-43:29
+action#android.accessibilityservice.AccessibilityService
+ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:42:17-92
+	android:name
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:42:25-89
+meta-data#android.accessibilityservice
+ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:44:13-46:72
+	android:resource
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:46:17-69
+	android:name
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:45:17-60
 uses-sdk
 INJECTED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml

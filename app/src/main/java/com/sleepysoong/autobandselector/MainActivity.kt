@@ -17,12 +17,14 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
@@ -116,8 +118,12 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.btnRevertAutomatic).setOnClickListener {
             logProgress("원상 복구(Automatic) 명령이 접수되었습니다.")
-            prefs.edit().putString("macro_mode", "REVERT_AUTOMATIC").apply()
-            prefs.edit().putString("target_band_to_set", "Automatic").apply()
+            prefs.edit().apply {
+                putString("macro_mode", "REVERT_AUTOMATIC")
+                putString("target_band_to_set", "Automatic")
+                putBoolean("band_setting_applied", false)
+                apply()
+            }
             startDialerOrApp()
         }
 
@@ -182,29 +188,129 @@ class MainActivity : AppCompatActivity() {
 
     private fun showLogsDialog() {
         val logsContent = readLogsFromFile()
-        val builder = AlertDialog.Builder(this)
-        builder.setTitle("누적 시스템 로그 기록")
         
-        // Scrollable text view inside dialog
-        val scrollView = android.widget.ScrollView(this)
+        val dialog = AlertDialog.Builder(this).create()
+        dialog.setTitle("누적 시스템 로그 기록")
+
+        // Root vertical layout
+        val rootLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 24, 32, 24)
+        }
+
+        // Scrollable container for text
+        val scrollView = android.widget.ScrollView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
+        }
+        
         val textView = TextView(this).apply {
             text = logsContent
-            setPadding(32, 32, 32, 32)
+            setTextIsSelectable(true) // Enable selectable text
             textSize = 12f
             setTextColor(android.graphics.Color.BLACK)
         }
         scrollView.addView(textView)
-        builder.setView(scrollView)
+        rootLayout.addView(scrollView)
 
-        builder.setPositiveButton("닫기") { dialog, _ ->
-            dialog.dismiss()
+        // Buttons container
+        val btnContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = 24
+            }
         }
-        builder.setNeutralButton("로그 삭제") { dialog, _ ->
-            clearLogFile()
-            dialog.dismiss()
-            Toast.makeText(this, "로그가 삭제되었습니다.", Toast.LENGTH_SHORT).show()
+
+        val btnParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+            rightMargin = 8
         }
-        builder.show()
+
+        // Copy button
+        val btnCopy = Button(this).apply {
+            text = "복사"
+            layoutParams = btnParams
+            setOnClickListener {
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("System Logs", textView.text)
+                clipboard.setPrimaryClip(clip)
+                Toast.makeText(this@MainActivity, "로그가 클립보드에 복사되었습니다.", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        // Share button
+        val btnShare = Button(this).apply {
+            text = "공유"
+            layoutParams = btnParams
+            setOnClickListener {
+                shareLogFile()
+            }
+        }
+
+        // Delete button
+        val btnDelete = Button(this).apply {
+            text = "삭제"
+            layoutParams = btnParams
+            setOnClickListener {
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle("로그 삭제")
+                    .setMessage("정말로 누적 로그를 삭제하시겠습니까?")
+                    .setPositiveButton("삭제") { _, _ ->
+                        clearLogFile()
+                        textView.text = "저장된 로그 기록이 없습니다."
+                        Toast.makeText(this@MainActivity, "로그가 삭제되었습니다.", Toast.LENGTH_SHORT).show()
+                    }
+                    .setNegativeButton("취소", null)
+                    .show()
+            }
+        }
+
+        // Close button
+        val btnClose = Button(this).apply {
+            text = "닫기"
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            setOnClickListener {
+                dialog.dismiss()
+            }
+        }
+
+        btnContainer.addView(btnCopy)
+        btnContainer.addView(btnShare)
+        btnContainer.addView(btnDelete)
+        btnContainer.addView(btnClose)
+        rootLayout.addView(btnContainer)
+
+        dialog.setView(rootLayout)
+        dialog.show()
+    }
+
+    private fun shareLogFile() {
+        val logFile = File(filesDir, "logs.txt")
+        if (!logFile.exists() || logFile.length() == 0L) {
+            Toast.makeText(this, "공유할 로그 파일이 비어 있습니다.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        try {
+            val uri = FileProvider.getUriForFile(
+                this,
+                "com.sleepysoong.autobandselector.fileprovider",
+                logFile
+            )
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(shareIntent, "로그 파일 공유"))
+        } catch (e: Exception) {
+            logProgress("로그 파일 공유 실패: ${e.message}")
+            Toast.makeText(this, "공유 오류: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun startScanCountdown() {
@@ -236,6 +342,7 @@ class MainActivity : AppCompatActivity() {
                     putString("scan_bands", bands.joinToString(","))
                     putString("scan_speeds", "")
                     putString("target_band_to_set", bands[0])
+                    putBoolean("band_setting_applied", false)
                     apply()
                 }
 
@@ -278,11 +385,19 @@ class MainActivity : AppCompatActivity() {
                     prefs.edit().apply {
                         putString("macro_mode", "APPLY_BEST")
                         putString("target_band_to_set", bestBand)
+                        putBoolean("band_setting_applied", false)
                         apply()
                     }
                     logProgress("기기를 최고 속도 주파수($bestBand) 대역으로 영구 고정하기 위해 히든 메뉴에 진입합니다.")
                     startDialerOrApp()
                 }
+                return
+            }
+
+            // Check if accessibility service has applied the current band setting
+            val applied = prefs.getBoolean("band_setting_applied", false)
+            if (!applied) {
+                logProgress("네트워크 제어 신호를 대기하고 있습니다... (접근성 자동화 활성화 확인)")
                 return
             }
 
@@ -311,6 +426,7 @@ class MainActivity : AppCompatActivity() {
                 prefs.edit().apply {
                     putInt("scan_step", nextStep)
                     putString("scan_speeds", newSpeedsStr)
+                    putBoolean("band_setting_applied", false)
                     apply()
                 }
 
@@ -327,12 +443,18 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         } else if (macroMode == "APPLY_BEST" || macroMode == "REVERT_AUTOMATIC") {
+            val applied = prefs.getBoolean("band_setting_applied", false)
+            if (!applied) {
+                logProgress("최종 주파수 적용 또는 자동 복구 신호를 대기 중입니다...")
+                return
+            }
             prefs.edit().apply {
                 putString("macro_mode", "")
                 putString("target_band_to_set", "")
                 putInt("scan_step", 0)
                 putString("scan_bands", "")
                 putString("scan_speeds", "")
+                putBoolean("band_setting_applied", false)
                 apply()
             }
             logProgress("자동 제어 매크로 프로세스가 정상 종료되었습니다. 사용이 완료되었습니다.")
@@ -352,10 +474,11 @@ class MainActivity : AppCompatActivity() {
             putInt("scan_step", 0)
             putString("scan_bands", "")
             putString("scan_speeds", "")
+            putBoolean("band_setting_applied", false)
             apply()
         }
         logProgress("사용자의 요청으로 즉시 속도 비교 측정 시퀀스를 폭파 중단했습니다.")
-        Toast.makeText(this, "스캔이 중중되었습니다.", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "스캔이 중단되었습니다.", Toast.LENGTH_SHORT).show()
         setUiScanning(false)
     }
 

@@ -1,3 +1,4 @@
+com.sleepysoong.autobandselector:xml/file_paths = 0x7f120001
 com.sleepysoong.autobandselector:styleable/include = 0x7f110098
 com.sleepysoong.autobandselector:styleable/ViewTransition = 0x7f110097
 com.sleepysoong.autobandselector:styleable/ViewPager2 = 0x7f110095

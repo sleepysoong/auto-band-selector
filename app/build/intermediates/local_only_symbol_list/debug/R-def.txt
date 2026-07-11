@@ -34,3 +34,4 @@ string accessibility_service_description
 string app_name
 style Theme.AutoBandSelector
 xml accessibility_service_config
+xml file_paths
