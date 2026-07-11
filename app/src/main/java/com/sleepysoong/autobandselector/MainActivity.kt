@@ -14,6 +14,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Immersive status bar for liquid glass look
+        window.decorView.systemUiVisibility =
+            android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE or android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+
         setContentView(R.layout.activity_main)
 
         val prefs = getSharedPreferences("BandSelectorPrefs", Context.MODE_PRIVATE)
