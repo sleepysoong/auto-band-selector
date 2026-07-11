@@ -16,7 +16,7 @@
             android:id="@+id/tvAppTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="자동 주파수 고정기"
+            android:text="auto-band-selector"
             android:textColor="#FFFFFF"
             android:textSize="28sp"
             android:textStyle="bold"
@@ -136,7 +136,7 @@
                 android:letterSpacing="-0.05" />
         </LinearLayout>
 
-        <!-- Card 2: Carrier Configuration -->
+        <!-- Card 2: Device & SIM Configuration -->
         <LinearLayout
             android:id="@+id/cardCarrier"
             android:layout_width="match_parent"
@@ -150,65 +150,125 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="2. 통신사 선택"
+                android:text="2. 기기 및 유심 설정"
                 android:textColor="#FFFFFF"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:fontFamily="@font/pretendard_font"
                 android:letterSpacing="-0.05"
-                android:layout_marginBottom="6dp" />
+                android:layout_marginBottom="12dp" />
 
+            <!-- Device Model Carrier Section -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="매크로 실행 시 히든 메뉴 비밀번호를 자동으로 입력하기 위해 가입된 통신사를 선택해주세요."
-                android:textColor="#E0FFFFFF"
-                android:textSize="13sp"
+                android:text="■ 기기 원통신사 (비밀번호 및 히든메뉴 실행용)"
+                android:textColor="#FFD54F"
+                android:textSize="12sp"
+                android:textStyle="bold"
                 android:fontFamily="@font/pretendard_font"
                 android:letterSpacing="-0.05"
-                android:layout_marginBottom="14dp" />
+                android:layout_marginBottom="6dp" />
 
             <RadioGroup
-                android:id="@+id/rgCarrier"
+                android:id="@+id/rgDeviceCarrier"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:orientation="horizontal"
+                android:layout_marginBottom="16dp">
 
                 <RadioButton
-                    android:id="@+id/rbSkt"
-                    android:layout_width="wrap_content"
+                    android:id="@+id/rbDevSkt"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
                     android:layout_height="wrap_content"
-                    android:text="SKT (비밀번호: 996412)"
+                    android:text="SKT 기기"
                     android:textColor="#FFFFFF"
                     android:buttonTint="#FFFFFF"
                     android:checked="true"
-                    android:textSize="14sp"
+                    android:textSize="13sp"
                     android:fontFamily="@font/pretendard_font"
-                    android:letterSpacing="-0.05"
-                    android:layout_marginBottom="4dp"/>
+                    android:letterSpacing="-0.05" />
 
                 <RadioButton
-                    android:id="@+id/rbKt"
-                    android:layout_width="wrap_content"
+                    android:id="@+id/rbDevKt"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
                     android:layout_height="wrap_content"
-                    android:text="KT (비밀번호: 774632)"
+                    android:text="KT 기기"
                     android:textColor="#FFFFFF"
                     android:buttonTint="#FFFFFF"
-                    android:textSize="14sp"
+                    android:textSize="13sp"
                     android:fontFamily="@font/pretendard_font"
-                    android:letterSpacing="-0.05"
-                    android:layout_marginBottom="4dp"/>
+                    android:letterSpacing="-0.05" />
 
                 <RadioButton
-                    android:id="@+id/rbUplus"
-                    android:layout_width="wrap_content"
+                    android:id="@+id/rbDevUplus"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
                     android:layout_height="wrap_content"
-                    android:text="LGU+ (비밀번호: 0821)"
+                    android:text="LGU+ 기기"
                     android:textColor="#FFFFFF"
                     android:buttonTint="#FFFFFF"
                     android:fontFamily="@font/pretendard_font"
                     android:letterSpacing="-0.05"
-                    android:textSize="14sp" />
+                    android:textSize="13sp" />
+            </RadioGroup>
+
+            <!-- SIM Carrier Section -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="■ 장착된 유심 통신사 (측정할 주파수 대역 결정)"
+                android:textColor="#FFD54F"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:fontFamily="@font/pretendard_font"
+                android:letterSpacing="-0.05"
+                android:layout_marginBottom="6dp" />
+
+            <RadioGroup
+                android:id="@+id/rgSimCarrier"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <RadioButton
+                    android:id="@+id/rbSimSkt"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:text="SKT 유심"
+                    android:textColor="#FFFFFF"
+                    android:buttonTint="#FFFFFF"
+                    android:checked="true"
+                    android:textSize="13sp"
+                    android:fontFamily="@font/pretendard_font"
+                    android:letterSpacing="-0.05" />
+
+                <RadioButton
+                    android:id="@+id/rbSimKt"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:text="KT 유심"
+                    android:textColor="#FFFFFF"
+                    android:buttonTint="#FFFFFF"
+                    android:textSize="13sp"
+                    android:fontFamily="@font/pretendard_font"
+                    android:letterSpacing="-0.05" />
+
+                <RadioButton
+                    android:id="@+id/rbSimUplus"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:text="LGU+ 유심"
+                    android:textColor="#FFFFFF"
+                    android:buttonTint="#FFFFFF"
+                    android:fontFamily="@font/pretendard_font"
+                    android:letterSpacing="-0.05"
+                    android:textSize="13sp" />
             </RadioGroup>
         </LinearLayout>
 
@@ -254,6 +314,19 @@
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_glass_button"
                 android:text="일반 자동 선택 모드로 복구"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:fontFamily="@font/pretendard_font"
+                android:letterSpacing="-0.05"
+                android:layout_marginBottom="12dp" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnShowLogs"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_glass_button"
+                android:text="누적 로그 확인하기"
                 android:textAllCaps="false"
                 android:textColor="#FFFFFF"
                 android:textStyle="bold"

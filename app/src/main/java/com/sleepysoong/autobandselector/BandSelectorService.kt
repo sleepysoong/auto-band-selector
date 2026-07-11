@@ -15,17 +15,18 @@ class BandSelectorService : AccessibilityService() {
         val rootNode = rootInActiveWindow ?: return
 
         val prefs = getSharedPreferences("BandSelectorPrefs", Context.MODE_PRIVATE)
-        val carrier = prefs.getString("carrier", "SKT") ?: "SKT"
+        val deviceCarrier = prefs.getString("device_carrier", "SKT") ?: "SKT"
+        val simCarrier = prefs.getString("sim_carrier", "SKT") ?: "SKT"
         val macroMode = prefs.getString("macro_mode", "") ?: ""
         val targetBand = prefs.getString("target_band_to_set", "") ?: ""
 
         if (macroMode.isEmpty() || targetBand.isEmpty()) return
 
-        // 1. Password Auto-Input
+        // 1. Password Auto-Input (Depends on Device firmware Carrier)
         val isPasswordScreen = findNodeByText(rootNode, "Password") != null || 
                                findNodeByText(rootNode, "비밀번호") != null
         if (isPasswordScreen) {
-            val pwd = when (carrier) {
+            val pwd = when (deviceCarrier) {
                 "SKT" -> "996412"
                 "KT" -> "774632"
                 "LGU+" -> "0821"
@@ -70,8 +71,6 @@ class BandSelectorService : AccessibilityService() {
             val checkboxes = mutableListOf<AccessibilityNodeInfo>()
             findAllCheckboxes(rootNode, checkboxes)
             
-            var changedAny = false
-            
             if (targetBand == "Automatic") {
                 // For Automatic, just make sure Automatic is checked
                 for (cb in checkboxes) {
@@ -79,7 +78,6 @@ class BandSelectorService : AccessibilityService() {
                     if (text.contains("Automatic", ignoreCase = true)) {
                         if (!cb.isChecked) {
                             cb.parent?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                            changedAny = true
                         }
                     }
                 }
@@ -91,19 +89,17 @@ class BandSelectorService : AccessibilityService() {
                     if (text.contains("Automatic", ignoreCase = true)) {
                         if (cb.isChecked) {
                             cb.parent?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                            changedAny = true
                         }
                     }
                 }
                 
-                // Check target band, and uncheck other bands we don't want
-                val carrierBands = getBandsForCarrier(carrier)
+                // Check target band, and uncheck other bands we don't want (Depends on SIM Carrier bands)
+                val carrierBands = getBandsForCarrier(simCarrier)
                 for (cb in checkboxes) {
                     val text = cb.text?.toString() ?: ""
                     if (text.contains(targetBand, ignoreCase = true)) {
                         if (!cb.isChecked) {
                             cb.parent?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                            changedAny = true
                         }
                     } else {
                         // Uncheck other carrier bands
@@ -111,7 +107,6 @@ class BandSelectorService : AccessibilityService() {
                             if (otherBand != targetBand && text.contains(otherBand, ignoreCase = true)) {
                                 if (cb.isChecked) {
                                     cb.parent?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                                    changedAny = true
                                 }
                             }
                         }

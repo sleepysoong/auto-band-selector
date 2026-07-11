@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">자동 주파수 고정기</string>
+    <string name="app_name">auto-band-selector</string>
     <string name="accessibility_service_description">이 서비스는 삼성 네트워크 히든 메뉴와 자동 상호작용하여 최적의 LTE 대역을 선택합니다.</string>
 </resources>

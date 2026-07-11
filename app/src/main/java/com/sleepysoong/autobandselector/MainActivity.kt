@@ -15,6 +15,7 @@ import android.widget.LinearLayout
 import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +26,9 @@ import kotlinx.coroutines.withContext
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
@@ -60,25 +64,50 @@ class MainActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("BandSelectorPrefs", Context.MODE_PRIVATE)
 
         findViewById<Button>(R.id.btnEnableAccessibility).setOnClickListener {
+            logProgress("사용자가 접근성 설정 페이지 진입 버튼을 클릭했습니다.")
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
 
-        val rgCarrier = findViewById<RadioGroup>(R.id.rgCarrier)
-        val savedCarrier = prefs.getString("carrier", "SKT")
-        when (savedCarrier) {
-            "SKT" -> rgCarrier.check(R.id.rbSkt)
-            "KT" -> rgCarrier.check(R.id.rbKt)
-            "LGU+" -> rgCarrier.check(R.id.rbUplus)
+        // Initialize Device Carrier Selection
+        val rgDeviceCarrier = findViewById<RadioGroup>(R.id.rgDeviceCarrier)
+        val savedDeviceCarrier = prefs.getString("device_carrier", "SKT")
+        logProgress("저장된 기기 원통신사 설정을 불러왔습니다: $savedDeviceCarrier")
+        when (savedDeviceCarrier) {
+            "SKT" -> rgDeviceCarrier.check(R.id.rbDevSkt)
+            "KT" -> rgDeviceCarrier.check(R.id.rbDevKt)
+            "LGU+" -> rgDeviceCarrier.check(R.id.rbDevUplus)
         }
 
-        rgCarrier.setOnCheckedChangeListener { _, checkedId ->
+        rgDeviceCarrier.setOnCheckedChangeListener { _, checkedId ->
             val carrier = when (checkedId) {
-                R.id.rbSkt -> "SKT"
-                R.id.rbKt -> "KT"
-                R.id.rbUplus -> "LGU+"
+                R.id.rbDevSkt -> "SKT"
+                R.id.rbDevKt -> "KT"
+                R.id.rbDevUplus -> "LGU+"
                 else -> "SKT"
             }
-            prefs.edit().putString("carrier", carrier).apply()
+            prefs.edit().putString("device_carrier", carrier).apply()
+            logProgress("기기 원통신사 설정이 저장되었습니다: $carrier")
+        }
+
+        // Initialize SIM Carrier Selection
+        val rgSimCarrier = findViewById<RadioGroup>(R.id.rgSimCarrier)
+        val savedSimCarrier = prefs.getString("sim_carrier", "SKT")
+        logProgress("저장된 유심 통신사 설정을 불러왔습니다: $savedSimCarrier")
+        when (savedSimCarrier) {
+            "SKT" -> rgSimCarrier.check(R.id.rbSimSkt)
+            "KT" -> rgSimCarrier.check(R.id.rbSimKt)
+            "LGU+" -> rgSimCarrier.check(R.id.rbSimUplus)
+        }
+
+        rgSimCarrier.setOnCheckedChangeListener { _, checkedId ->
+            val carrier = when (checkedId) {
+                R.id.rbSimSkt -> "SKT"
+                R.id.rbSimKt -> "KT"
+                R.id.rbSimUplus -> "LGU+"
+                else -> "SKT"
+            }
+            prefs.edit().putString("sim_carrier", carrier).apply()
+            logProgress("장착 유심 통신사 설정이 저장되었습니다: $carrier")
         }
 
         findViewById<Button>(R.id.btnRunMacro).setOnClickListener {
@@ -86,6 +115,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.btnRevertAutomatic).setOnClickListener {
+            logProgress("원상 복구(Automatic) 명령이 접수되었습니다.")
             prefs.edit().putString("macro_mode", "REVERT_AUTOMATIC").apply()
             prefs.edit().putString("target_band_to_set", "Automatic").apply()
             startDialerOrApp()
@@ -93,6 +123,10 @@ class MainActivity : AppCompatActivity() {
 
         btnStopScan.setOnClickListener {
             stopScan()
+        }
+
+        findViewById<Button>(R.id.btnShowLogs).setOnClickListener {
+            showLogsDialog()
         }
     }
 
@@ -102,7 +136,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun logProgress(message: String) {
-        val currentTime = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
+        val currentTime = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
         val currentLog = tvScanResults.text.toString()
         val newLog = if (currentLog.isEmpty()) {
             "[$currentTime] $message"
@@ -110,29 +144,91 @@ class MainActivity : AppCompatActivity() {
             "$currentLog\n[$currentTime] $message"
         }
         tvScanResults.text = newLog
-        Log.d("BandSelectorLog", "[$currentTime] $message")
+        
+        // Write to cumulative local file
+        writeLogToFile(message)
+    }
+
+    private fun writeLogToFile(message: String) {
+        val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+        val formattedLine = "[$timestamp] $message\n"
+        try {
+            openFileOutput("logs.txt", Context.MODE_APPEND).use {
+                it.write(formattedLine.toByteArray())
+            }
+        } catch (e: Exception) {
+            Log.e("BandSelectorLog", "로그 파일 저장 실패: ${e.message}")
+        }
+    }
+
+    private fun readLogsFromFile(): String {
+        return try {
+            openFileInput("logs.txt").use {
+                it.bufferedReader().readText()
+            }
+        } catch (e: Exception) {
+            "저장된 로그 기록이 없습니다."
+        }
+    }
+
+    private fun clearLogFile() {
+        try {
+            deleteFile("logs.txt")
+            logProgress("로그 파일이 디바이스에서 완전히 제거되었습니다.")
+        } catch (e: Exception) {
+            Log.e("BandSelectorLog", "로그 삭제 오류: ${e.message}")
+        }
+    }
+
+    private fun showLogsDialog() {
+        val logsContent = readLogsFromFile()
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle("누적 시스템 로그 기록")
+        
+        // Scrollable text view inside dialog
+        val scrollView = android.widget.ScrollView(this)
+        val textView = TextView(this).apply {
+            text = logsContent
+            setPadding(32, 32, 32, 32)
+            textSize = 12f
+            setTextColor(android.graphics.Color.BLACK)
+        }
+        scrollView.addView(textView)
+        builder.setView(scrollView)
+
+        builder.setPositiveButton("닫기") { dialog, _ ->
+            dialog.dismiss()
+        }
+        builder.setNeutralButton("로그 삭제") { dialog, _ ->
+            clearLogFile()
+            dialog.dismiss()
+            Toast.makeText(this, "로그가 삭제되었습니다.", Toast.LENGTH_SHORT).show()
+        }
+        builder.show()
     }
 
     private fun startScanCountdown() {
         setUiScanning(true)
         tvScanStatus.text = "주파수 스캔 초기화 중"
         tvScanResults.text = "" // Clear log
-        logProgress("자동 주파수 스캔 작업을 대기열에 등록했습니다.")
+        logProgress("사용자가 자동 스캔 버튼을 클릭했습니다. 작업을 시작합니다.")
         
         scanJob = lifecycleScope.launch {
             try {
-                // Enter PIP mode to show live progress
                 enterPipMode()
                 
                 for (i in 3 downTo 1) {
                     tvScanCountdown.text = "${i}초 뒤 스캔을 시작합니다..."
-                    logProgress("스캔 대기 중... (${i}초)")
+                    logProgress("스캔 자동 진입 대기 중... (${i}초)")
                     delay(1000)
                 }
                 
                 val prefs = getSharedPreferences("BandSelectorPrefs", Context.MODE_PRIVATE)
-                val carrier = prefs.getString("carrier", "SKT") ?: "SKT"
-                val bands = getBandsForCarrier(carrier)
+                val deviceCarrier = prefs.getString("device_carrier", "SKT") ?: "SKT"
+                val simCarrier = prefs.getString("sim_carrier", "SKT") ?: "SKT"
+                val bands = getBandsForCarrier(simCarrier)
+                
+                logProgress("설정정보 로딩 - 기기: $deviceCarrier, 유심: $simCarrier, 측정대역: ${bands.joinToString(", ")}")
                 
                 prefs.edit().apply {
                     putString("macro_mode", "SCANNING")
@@ -144,10 +240,11 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 tvScanCountdown.text = "히든 메뉴 진입 시도 중..."
+                logProgress("매크로 최초 진입을 위해 전용 시스템 앱을 호출합니다.")
                 delay(1000)
                 startDialerOrApp()
             } catch (e: Exception) {
-                logProgress("카운트다운 중 오류 발생: ${e.message}")
+                logProgress("카운트다운 스레드 치명적인 오류 발생: ${e.message}")
             }
         }
     }
@@ -164,17 +261,16 @@ class MainActivity : AppCompatActivity() {
             val speedsStr = prefs.getString("scan_speeds", "") ?: ""
             
             if (bands.isEmpty() || step >= bands.size) {
-                // Done scanning
                 scanJob = lifecycleScope.launch {
                     tvScanStatus.text = "주파수 스캔 완료"
                     tvScanCountdown.text = "최적의 주파수를 분석하고 있습니다..."
-                    logProgress("스캔 완료. 모든 데이터 분석을 시작합니다.")
+                    logProgress("전체 대역폭 측정이 끝났습니다. 수집된 속도 데이터를 대조 분석합니다.")
                     
                     val speedList = parseSpeeds(speedsStr)
                     displayResults(speedList)
                     
                     val bestBand = speedList.maxByOrNull { it.second }?.first ?: "Automatic"
-                    logProgress("최고 속도 주파수 분석 완료: $bestBand")
+                    logProgress("통계적 최고 처리속도 대역폭 탐색 완료: $bestBand")
                     
                     tvScanCountdown.text = "최적 주파수: $bestBand. 최종 적용 중..."
                     delay(3000)
@@ -184,34 +280,31 @@ class MainActivity : AppCompatActivity() {
                         putString("target_band_to_set", bestBand)
                         apply()
                     }
-                    logProgress("$bestBand 대역 최종 적용을 위해 히든 메뉴에 재진입합니다.")
+                    logProgress("기기를 최고 속도 주파수($bestBand) 대역으로 영구 고정하기 위해 히든 메뉴에 진입합니다.")
                     startDialerOrApp()
                 }
                 return
             }
 
-            // Perform test for current band
             val currentBand = bands[step]
             scanJob = lifecycleScope.launch {
                 tvScanStatus.text = "대역폭 테스트: $currentBand"
-                logProgress("$currentBand 대역폭으로 통신망이 설정되었습니다.")
+                logProgress("성공적으로 $currentBand 대역폭으로 기기 네트워크망이 설정되었습니다.")
                 
                 val speedList = parseSpeeds(speedsStr)
                 displayResults(speedList)
                 
-                // 1. Wait for network to reconnect (settle)
                 for (i in 5 downTo 1) {
                     tvScanCountdown.text = "네트워크 안정화 대기 중... ${i}초"
-                    logProgress("네트워크 연결 대기 중... (${i}초)")
+                    logProgress("LTE 무선 기지국 재접속 대기 시간... (${i}초)")
                     delay(1000)
                 }
                 
                 tvScanCountdown.text = "다운로드 속도 측정 중..."
-                logProgress("Cloudflare CDN 기준 인터넷 속도 테스트 시작...")
+                logProgress("Cloudflare CDN 백본 네트워크를 이용한 속도 테스트를 전송합니다...")
                 val speed = runSpeedTest()
-                logProgress("$currentBand 대역 속도 측정 완료: ${String.format("%.2f", speed)} Mbps")
+                logProgress("$currentBand 대역 평균 데이터 전송 속도: ${String.format("%.2f", speed)} Mbps")
                 
-                // Save speed result
                 val newSpeedsStr = if (speedsStr.isEmpty()) "$currentBand:$speed" else "$speedsStr,$currentBand:$speed"
                 val nextStep = step + 1
                 
@@ -226,6 +319,7 @@ class MainActivity : AppCompatActivity() {
                     prefs.edit().putString("target_band_to_set", nextBand).apply()
                     tvScanStatus.text = "주파수 전환: $nextBand"
                     tvScanCountdown.text = "시스템 히든 메뉴 진입 중..."
+                    logProgress("다음 주파수($nextBand) 측정을 위해 히든 메뉴 재설정을 호출합니다.")
                     delay(2000)
                     startDialerOrApp()
                 } else {
@@ -241,7 +335,7 @@ class MainActivity : AppCompatActivity() {
                 putString("scan_speeds", "")
                 apply()
             }
-            logProgress("모든 최적화 프로세스가 안전하게 완수되었습니다.")
+            logProgress("자동 제어 매크로 프로세스가 정상 종료되었습니다. 사용이 완료되었습니다.")
             Toast.makeText(this, "주파수 최적화 설정이 완료되었습니다!", Toast.LENGTH_LONG).show()
             finish()
         } else {
@@ -260,16 +354,16 @@ class MainActivity : AppCompatActivity() {
             putString("scan_speeds", "")
             apply()
         }
-        logProgress("사용자에 의해 주파수 고정 스캔 작업이 강제 중단되었습니다.")
-        Toast.makeText(this, "스캔이 중단되었습니다.", Toast.LENGTH_SHORT).show()
+        logProgress("사용자의 요청으로 즉시 속도 비교 측정 시퀀스를 폭파 중단했습니다.")
+        Toast.makeText(this, "스캔이 중중되었습니다.", Toast.LENGTH_SHORT).show()
         setUiScanning(false)
     }
 
     private fun displayResults(speeds: List<Pair<String, Double>>) {
         val sb = StringBuilder()
-        sb.append("측정 결과 목록:\n")
+        sb.append("실시간 속도 리포트:\n")
         if (speeds.isEmpty()) {
-            sb.append("(측정 완료된 결과가 아직 없습니다)")
+            sb.append("(테스트 데이터 수집 대기 중...)")
         } else {
             for (p in speeds) {
                 sb.append("• ${p.first}: ${String.format("%.2f", p.second)} Mbps\n")
@@ -346,21 +440,21 @@ class MainActivity : AppCompatActivity() {
 
     private fun startDialerOrApp() {
         val prefs = getSharedPreferences("BandSelectorPrefs", Context.MODE_PRIVATE)
-        val carrier = prefs.getString("carrier", "SKT") ?: "SKT"
+        val deviceCarrier = prefs.getString("device_carrier", "SKT") ?: "SKT"
         
-        logProgress("시스템 히든 메뉴 진입 시도 중 (통신사: $carrier)")
+        logProgress("히든 메뉴 진입 시퀀스 시작 (기기 캐리어: $deviceCarrier)")
         
-        val launched = startHiddenMenuApp(carrier)
+        val launched = startHiddenMenuApp(deviceCarrier)
         if (launched) {
-            logProgress("통신사 전용 히든 메뉴 앱을 직접 실행했습니다.")
+            logProgress("명시적 시스템 패키지 매칭 및 화면 강제 호출에 성공했습니다.")
         } else {
-            logProgress("히든 메뉴 앱 직접 실행 실패. 다이얼러 우회 실행 중...")
+            logProgress("시스템 다이렉트 런처 탐색 실패. 기존 다이얼러 기반 딜레이 실행을 개시합니다.")
             startDialer()
         }
     }
 
-    private fun startHiddenMenuApp(carrier: String): Boolean {
-        val packageName = when (carrier) {
+    private fun startHiddenMenuApp(deviceCarrier: String): Boolean {
+        val packageName = when (deviceCarrier) {
             "SKT" -> "com.samsung.hidden.SKT"
             "KT" -> "com.samsung.hidden.KT"
             "LGU+" -> "com.samsung.hidden.LGT"
@@ -371,7 +465,7 @@ class MainActivity : AppCompatActivity() {
         try {
             pm.getPackageInfo(packageName, 0)
         } catch (e: Exception) {
-            logProgress("해당 패키지가 디바이스에 존재하지 않습니다: $packageName")
+            logProgress("대상 통신사 히든 패키지가 단말에 부재합니다: $packageName")
             return false
         }
 
@@ -381,7 +475,7 @@ class MainActivity : AppCompatActivity() {
                 startActivity(launchIntent)
                 return true
             } catch (e: Exception) {
-                logProgress("Launch Intent 실행 실패: ${e.message}")
+                logProgress("Launch Intent 바인딩 실패: ${e.message}")
             }
         }
 
@@ -390,7 +484,7 @@ class MainActivity : AppCompatActivity() {
             val activities = packageInfo.activities
             if (!activities.isNullOrEmpty()) {
                 val mainActivity = activities[0].name
-                logProgress("액티비티 검색 성공: $mainActivity")
+                logProgress("패키지 액티비티 추출 완료: $mainActivity")
                 val intent = Intent().apply {
                     setClassName(packageName, mainActivity)
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -399,7 +493,7 @@ class MainActivity : AppCompatActivity() {
                 return true
             }
         } catch (e: Exception) {
-            logProgress("액티비티 명시적 실행 실패: ${e.message}")
+            logProgress("명시적 컴포넌트 호출 오류: ${e.message}")
         }
 
         return false
@@ -422,7 +516,6 @@ class MainActivity : AppCompatActivity() {
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         if (isInPictureInPictureMode) {
-            // PIP UI
             tvAppTitle.visibility = View.GONE
             cardScanProgress.setPadding(8, 8, 8, 8)
             tvScanStatus.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14f)
@@ -430,7 +523,6 @@ class MainActivity : AppCompatActivity() {
             tvScanResults.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 10f)
             btnStopScan.visibility = View.GONE
         } else {
-            // Restore UI
             tvAppTitle.visibility = View.VISIBLE
             cardScanProgress.setPadding(20, 20, 20, 20)
             tvScanStatus.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 18f)
