@@ -34,9 +34,6 @@ class BandSelectorService : AccessibilityService() {
         }
 
         // 0. Dialer input auto-completion
-        // Samsung domestic hidden menu is triggered by typing exactly "319712358" (no * or # prefix/suffix).
-        // Since intent launches with "319712358" pre-filled, it doesn't trigger the hidden menu automatically.
-        // We set the text to "31971235" (without the last '8') and then simulate a touch click on the '8' button!
         val digitsNode = findNodeContainingNumber(rootNode, "319712358")
         if (digitsNode != null) {
             val txt = digitsNode.text?.toString() ?: ""
@@ -51,7 +48,7 @@ class BandSelectorService : AccessibilityService() {
                 
                 if (success) {
                     try {
-                        Thread.sleep(150) // Brief pause to let text settle
+                        Thread.sleep(150)
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
@@ -67,8 +64,6 @@ class BandSelectorService : AccessibilityService() {
                         } else {
                             eightButton.performAction(AccessibilityNodeInfo.ACTION_CLICK)
                         }
-                    } else {
-                        Log.e("BandSelectorBot", "Could not find '8' button on the dialpad screen")
                     }
                 }
                 return
@@ -79,7 +74,6 @@ class BandSelectorService : AccessibilityService() {
         val isPasswordScreen = findNodeByText(rootNode, "Password") != null || 
                                findNodeByText(rootNode, "비밀번호") != null
         if (isPasswordScreen) {
-            // Reset dialer click state since we are inside hidden menu
             dialerClicked = false
             
             val pwd = when (deviceCarrier) {
@@ -97,6 +91,17 @@ class BandSelectorService : AccessibilityService() {
                 val okButton = findNodeByText(rootNode, "OK") ?: findNodeByText(rootNode, "확인")
                 okButton?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
             }
+            return
+        }
+
+        // 1.5. Warning Dialog Auto-Dismiss (Common in domestic KT/LGT hidden menus)
+        val isWarningScreen = findNodeByText(rootNode, "숨겨진 정보로 진입하셨습니다.") != null ||
+                              findNodeByText(rootNode, "숨겨진 정보로 진입하셨습니다") != null ||
+                              findNodeByText(rootNode, "디바이스에 심각한 손상을") != null
+        if (isWarningScreen) {
+            Log.d("BandSelectorBot", "Found Warning Dialog screen. Clicking confirm to bypass...")
+            val okButton = findNodeByText(rootNode, "확인") ?: findNodeByText(rootNode, "OK")
+            okButton?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
             return
         }
 
