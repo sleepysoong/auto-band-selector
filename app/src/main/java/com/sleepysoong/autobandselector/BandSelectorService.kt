@@ -23,26 +23,18 @@ class BandSelectorService : AccessibilityService() {
         if (macroMode.isEmpty() || targetBand.isEmpty()) return
 
         // 0. Dialer input auto-completion
-        val packageName = event.packageName?.toString() ?: ""
-        val isDialer = packageName.contains("dialer", ignoreCase = true) || 
-                       packageName.contains("contacts", ignoreCase = true) ||
-                       packageName.contains("sec.android.easyMime", ignoreCase = true)
-        
-        if (isDialer) {
-            var digitsNode = findDigitsNodeForInput(rootNode, "319712358")
-            if (digitsNode == null) {
-                digitsNode = findFirstInputNode(rootNode)
-            }
-            
-            if (digitsNode != null) {
-                val txt = digitsNode.text?.toString() ?: ""
-                if (!txt.contains("*#")) {
-                    Log.d("BandSelectorBot", "Found dialer digits field: $txt, auto-typing secret code *#319712358#")
-                    val arguments = Bundle()
-                    arguments.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "*#319712358#")
-                    digitsNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
-                    return
-                }
+        // Instead of filtering by package name (which varies across Samsung firmwares),
+        // we directly search for any node containing "319712358" (with formatting removed)
+        val digitsNode = findNodeContainingNumber(rootNode, "319712358")
+        if (digitsNode != null) {
+            val txt = digitsNode.text?.toString() ?: ""
+            if (!txt.contains("*#")) {
+                Log.d("BandSelectorBot", "Found dialer digits field: $txt. Auto-typing secret code *#319712358#")
+                val arguments = Bundle()
+                arguments.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "*#319712358#")
+                val success = digitsNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
+                Log.d("BandSelectorBot", "Set text action result: $success")
+                return
             }
         }
 
@@ -157,34 +149,15 @@ class BandSelectorService : AccessibilityService() {
         }
     }
 
-    private fun findDigitsNodeForInput(root: AccessibilityNodeInfo, target: String): AccessibilityNodeInfo? {
+    private fun findNodeContainingNumber(root: AccessibilityNodeInfo, target: String): AccessibilityNodeInfo? {
         val txt = root.text?.toString()?.replace("-", "")?.replace(" ", "") ?: ""
-        val actions = root.actionList
-        val supportsSetText = actions.any { it.id == AccessibilityNodeInfo.ACTION_SET_TEXT }
-        
-        if (txt.contains(target) && (root.className == "android.widget.EditText" || root.isEditable || supportsSetText)) {
+        if (txt.contains(target)) {
             return root
         }
         for (i in 0 until root.childCount) {
             val child = root.getChild(i)
             if (child != null) {
-                val res = findDigitsNodeForInput(child, target)
-                if (res != null) return res
-            }
-        }
-        return null
-    }
-
-    private fun findFirstInputNode(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-        val actions = root.actionList
-        val supportsSetText = actions.any { it.id == AccessibilityNodeInfo.ACTION_SET_TEXT }
-        if (root.className == "android.widget.EditText" || root.isEditable || supportsSetText || root.viewIdResourceName?.contains("digits") == true) {
-            return root
-        }
-        for (i in 0 until root.childCount) {
-            val child = root.getChild(i)
-            if (child != null) {
-                val res = findFirstInputNode(child)
+                val res = findNodeContainingNumber(child, target)
                 if (res != null) return res
             }
         }
