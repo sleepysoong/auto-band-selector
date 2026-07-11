@@ -86,13 +86,13 @@ MERGED from [androidx.startup:startup-runtime:1.1.1] /root/.gradle/caches/transf
 	android:label
 		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:9:9-41
 	android:roundIcon
-		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:10:9-63
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:10:9-54
 	android:icon
-		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:8:9-58
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:8:9-49
 	android:allowBackup
 		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:7:9-35
 	android:theme
-		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:12:9-65
+		ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:12:9-54
 activity#com.sleepysoong.autobandselector.MainActivity
 ADDED from /root/.gemini/antigravity-cli/scratch/auto-band-selector/app/src/main/AndroidManifest.xml:14:9-21:20
 	android:exported

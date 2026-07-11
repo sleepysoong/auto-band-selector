@@ -16,10 +16,12 @@
             android:id="@+id/tvAppTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Auto Band Selector"
+            android:text="자동 주파수 고정기"
             android:textColor="#FFFFFF"
             android:textSize="28sp"
             android:textStyle="bold"
+            android:fontFamily="@font/pretendard_font"
+            android:letterSpacing="-0.05"
             android:layout_gravity="center"
             android:layout_marginTop="24dp"
             android:layout_marginBottom="20dp"
@@ -44,20 +46,24 @@
                 android:id="@+id/tvScanStatus"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Initializing..."
+                android:text="초기화 중..."
                 android:textColor="#FFFFFF"
                 android:textSize="18sp"
                 android:textStyle="bold"
+                android:fontFamily="@font/pretendard_font"
+                android:letterSpacing="-0.05"
                 android:layout_marginBottom="8dp" />
 
             <TextView
                 android:id="@+id/tvScanCountdown"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Starting in 3 seconds..."
+                android:text="3초 뒤 시작합니다..."
                 android:textColor="#FFD54F"
                 android:textSize="15sp"
                 android:textStyle="bold"
+                android:fontFamily="@font/pretendard_font"
+                android:letterSpacing="-0.05"
                 android:layout_marginBottom="16dp" />
 
             <TextView
@@ -67,6 +73,8 @@
                 android:text=""
                 android:textColor="#FFFFFF"
                 android:textSize="14sp"
+                android:fontFamily="@font/pretendard_font"
+                android:letterSpacing="-0.05"
                 android:lineSpacingMultiplier="1.2" />
         </LinearLayout>
 
@@ -84,18 +92,22 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="1. Accessibility Service"
+                android:text="1. 접근성 서비스 설정"
                 android:textColor="#FFFFFF"
                 android:textSize="16sp"
                 android:textStyle="bold"
+                android:fontFamily="@font/pretendard_font"
+                android:letterSpacing="-0.05"
                 android:layout_marginBottom="6dp" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Required to automate the hidden system settings dialer macro."
+                android:text="시스템 히든 메뉴 매크로 자동화를 실행하기 위해 접근성 권한 허용이 필요합니다."
                 android:textColor="#E0FFFFFF"
                 android:textSize="13sp"
+                android:fontFamily="@font/pretendard_font"
+                android:letterSpacing="-0.05"
                 android:layout_marginBottom="16dp" />
 
             <androidx.appcompat.widget.AppCompatButton
@@ -103,10 +115,12 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_glass_button"
-                android:text="Enable Accessibility"
+                android:text="접근성 권한 활성화하기"
                 android:textAllCaps="false"
                 android:textColor="#FFFFFF"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                android:fontFamily="@font/pretendard_font"
+                android:letterSpacing="-0.05" />
         </LinearLayout>
 
         <!-- Card 2: Carrier Configuration -->
@@ -123,18 +137,22 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="2. Carrier Configuration"
+                android:text="2. 통신사 선택"
                 android:textColor="#FFFFFF"
                 android:textSize="16sp"
                 android:textStyle="bold"
+                android:fontFamily="@font/pretendard_font"
+                android:letterSpacing="-0.05"
                 android:layout_marginBottom="6dp" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Choose your carrier to apply the correct password automatically."
+                android:text="매크로 실행 시 히든 메뉴 비밀번호를 자동으로 입력하기 위해 가입된 통신사를 선택해주세요."
                 android:textColor="#E0FFFFFF"
                 android:textSize="13sp"
+                android:fontFamily="@font/pretendard_font"
+                android:letterSpacing="-0.05"
                 android:layout_marginBottom="14dp" />
 
             <RadioGroup
@@ -147,30 +165,36 @@
                     android:id="@+id/rbSkt"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="SKT (996412)"
+                    android:text="SKT (비밀번호: 996412)"
                     android:textColor="#FFFFFF"
                     android:buttonTint="#FFFFFF"
                     android:checked="true"
                     android:textSize="14sp"
+                    android:fontFamily="@font/pretendard_font"
+                    android:letterSpacing="-0.05"
                     android:layout_marginBottom="4dp"/>
 
                 <RadioButton
                     android:id="@+id/rbKt"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="KT (774632)"
+                    android:text="KT (비밀번호: 774632)"
                     android:textColor="#FFFFFF"
                     android:buttonTint="#FFFFFF"
                     android:textSize="14sp"
+                    android:fontFamily="@font/pretendard_font"
+                    android:letterSpacing="-0.05"
                     android:layout_marginBottom="4dp"/>
 
                 <RadioButton
                     android:id="@+id/rbUplus"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="LGU+ (0821)"
+                    android:text="LGU+ (비밀번호: 0821)"
                     android:textColor="#FFFFFF"
                     android:buttonTint="#FFFFFF"
+                    android:fontFamily="@font/pretendard_font"
+                    android:letterSpacing="-0.05"
                     android:textSize="14sp" />
             </RadioGroup>
         </LinearLayout>
@@ -189,10 +213,12 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="3. Execute Control"
+                android:text="3. 실행 및 제어"
                 android:textColor="#FFFFFF"
                 android:textSize="16sp"
                 android:textStyle="bold"
+                android:fontFamily="@font/pretendard_font"
+                android:letterSpacing="-0.05"
                 android:layout_marginBottom="12dp" />
 
             <androidx.appcompat.widget.AppCompatButton
@@ -200,10 +226,12 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_glass_button_primary"
-                android:text="Start Auto Band Scan (3s Countdown)"
+                android:text="자동 주파수 스캔 시작 (3초 카운트다운)"
                 android:textAllCaps="false"
-                android:textColor="#FFFFFF"
+                android:textColor="#000000"
                 android:textStyle="bold"
+                android:fontFamily="@font/pretendard_font"
+                android:letterSpacing="-0.05"
                 android:layout_marginBottom="12dp"
                 android:elevation="4dp" />
 
@@ -212,19 +240,23 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_glass_button"
-                android:text="Revert to Automatic"
+                android:text="일반 자동 선택 모드로 복구"
                 android:textAllCaps="false"
                 android:textColor="#FFFFFF"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                android:fontFamily="@font/pretendard_font"
+                android:letterSpacing="-0.05" />
         </LinearLayout>
 
         <!-- Sleepysoong Info -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Developed by sleepysoong"
+            android:text="sleepysoong 제작"
             android:textColor="#80FFFFFF"
             android:textSize="11sp"
+            android:fontFamily="@font/pretendard_font"
+            android:letterSpacing="-0.05"
             android:layout_gravity="center"
             android:layout_marginBottom="8dp"/>
 

@@ -4,6 +4,10 @@ drawable bg_glass_button
 drawable bg_glass_button_primary
 drawable bg_glass_card
 drawable bg_liquid
+drawable ic_cat_launcher
+font pretendard
+font pretendard_bold
+font pretendard_font
 id btnEnableAccessibility
 id btnRevertAutomatic
 id btnRunMacro
@@ -22,4 +26,5 @@ id tvScanStatus
 layout activity_main
 string accessibility_service_description
 string app_name
+style Theme.AutoBandSelector
 xml accessibility_service_config

@@ -89,11 +89,11 @@ class MainActivity : AppCompatActivity() {
     private fun startScanCountdown() {
         // Hide config cards, show progress
         setUiScanning(true)
-        tvScanStatus.text = "Initializing Scan"
+        tvScanStatus.text = "주파수 스캔 초기화 중"
         
         lifecycleScope.launch {
             for (i in 3 downTo 1) {
-                tvScanCountdown.text = "Starting scan in $i seconds..."
+                tvScanCountdown.text = "${i}초 뒤 스캔을 시작합니다..."
                 delay(1000)
             }
             
@@ -111,7 +111,7 @@ class MainActivity : AppCompatActivity() {
                 apply()
             }
 
-            tvScanCountdown.text = "Launching Hidden Menu..."
+            tvScanCountdown.text = "시스템 히든 메뉴 진입 중..."
             delay(1000)
             startDialer()
         }
@@ -131,8 +131,8 @@ class MainActivity : AppCompatActivity() {
             if (bands.isEmpty() || step >= bands.size) {
                 // Done scanning or error
                 lifecycleScope.launch {
-                    tvScanStatus.text = "Scan Completed"
-                    tvScanCountdown.text = "Determining best band..."
+                    tvScanStatus.text = "주파수 스캔 완료"
+                    tvScanCountdown.text = "최적의 주파수를 분석하고 있습니다..."
                     
                     // Parse speeds
                     val speedList = parseSpeeds(speedsStr)
@@ -140,7 +140,7 @@ class MainActivity : AppCompatActivity() {
                     
                     val bestBand = speedList.maxByOrNull { it.second }?.first ?: "Automatic"
                     
-                    tvScanCountdown.text = "Best Band: $bestBand. Applying..."
+                    tvScanCountdown.text = "최적 주파수: $bestBand. 최종 적용 중..."
                     delay(3000)
                     
                     prefs.edit().apply {
@@ -156,7 +156,7 @@ class MainActivity : AppCompatActivity() {
             // Perform test for current band
             val currentBand = bands[step]
             lifecycleScope.launch {
-                tvScanStatus.text = "Testing $currentBand"
+                tvScanStatus.text = "대역폭 테스트: $currentBand"
                 
                 // Show current accumulated results
                 val speedList = parseSpeeds(speedsStr)
@@ -164,11 +164,11 @@ class MainActivity : AppCompatActivity() {
                 
                 // 1. Wait for network to reconnect (settle)
                 for (i in 5 downTo 1) {
-                    tvScanCountdown.text = "Waiting for network settle... ${i}s"
+                    tvScanCountdown.text = "네트워크 안정화 대기 중... ${i}초"
                     delay(1000)
                 }
                 
-                tvScanCountdown.text = "Testing speed (Downloading)..."
+                tvScanCountdown.text = "다운로드 속도 측정 중..."
                 val speed = runSpeedTest()
                 
                 // Save speed result
@@ -184,8 +184,8 @@ class MainActivity : AppCompatActivity() {
                 if (nextStep < bands.size) {
                     val nextBand = bands[nextStep]
                     prefs.edit().putString("target_band_to_set", nextBand).apply()
-                    tvScanStatus.text = "Switching to $nextBand"
-                    tvScanCountdown.text = "Launching Hidden Menu..."
+                    tvScanStatus.text = "주파수 전환: $nextBand"
+                    tvScanCountdown.text = "시스템 히든 메뉴 진입 중..."
                     delay(2000)
                     startDialer()
                 } else {
@@ -203,7 +203,7 @@ class MainActivity : AppCompatActivity() {
                 putString("scan_speeds", "")
                 apply()
             }
-            Toast.makeText(this, "Optimization Complete!", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "주파수 최적화 설정이 완료되었습니다!", Toast.LENGTH_LONG).show()
             finish()
         } else {
             setUiScanning(false)
@@ -212,9 +212,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun displayResults(speeds: List<Pair<String, Double>>) {
         val sb = StringBuilder()
-        sb.append("Tested Speeds:\n")
+        sb.append("측정 결과 목록:\n")
         if (speeds.isEmpty()) {
-            sb.append("(No tests completed yet)")
+            sb.append("(측정 완료된 결과가 아직 없습니다)")
         } else {
             for (p in speeds) {
                 sb.append("• ${p.first}: ${String.format("%.2f", p.second)} Mbps\n")

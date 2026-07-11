@@ -2992,6 +2992,7 @@ drawable ic_call_answer_video
 drawable ic_call_answer_video_low
 drawable ic_call_decline
 drawable ic_call_decline_low
+drawable ic_cat_launcher
 drawable ic_clear_black_24
 drawable ic_clock_black_24dp
 drawable ic_keyboard_black_24dp
@@ -3078,6 +3079,9 @@ drawable notify_panel_notification_icon_bg
 drawable test_level_drawable
 drawable tooltip_frame_dark
 drawable tooltip_frame_light
+font pretendard
+font pretendard_bold
+font pretendard_font
 id ALT
 id BOTTOM_END
 id BOTTOM_START
@@ -4497,6 +4501,7 @@ style Theme_AppCompat_Light_Dialog_MinWidth
 style Theme_AppCompat_Light_DialogWhenLarge
 style Theme_AppCompat_Light_NoActionBar
 style Theme_AppCompat_NoActionBar
+style Theme_AutoBandSelector
 style Theme_Design
 style Theme_Design_BottomSheetDialog
 style Theme_Design_Light

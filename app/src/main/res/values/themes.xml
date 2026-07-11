@@ -2,10 +2,12 @@
 <resources>
     <!-- Base application theme inheriting from stable AppCompat -->
     <style name="Theme.AutoBandSelector" parent="Theme.AppCompat.Light.NoActionBar">
+        <!-- Font family -->
+        <item name="android:fontFamily">@font/pretendard_font</item>
         <!-- Primary brand color. -->
-        <item name="colorPrimary">#203A43</item>
-        <item name="colorAccent">#F27121</item>
+        <item name="colorPrimary">#000000</item>
+        <item name="colorAccent">#FFFFFF</item>
         <!-- Status bar color. -->
-        <item name="android:statusBarColor">#0F2027</item>
+        <item name="android:statusBarColor">#000000</item>
     </style>
 </resources>
