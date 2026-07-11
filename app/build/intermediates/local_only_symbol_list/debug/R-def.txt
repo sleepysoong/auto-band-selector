@@ -11,6 +11,7 @@ font pretendard_font
 id btnEnableAccessibility
 id btnRevertAutomatic
 id btnRunMacro
+id btnStopScan
 id cardAccessibility
 id cardCarrier
 id cardExecute

@@ -28,7 +28,9 @@
         android:theme="@style/Theme.AutoBandSelector" >
         <activity
             android:name="com.sleepysoong.autobandselector.MainActivity"
-            android:exported="true" >
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
+            android:exported="true"
+            android:supportsPictureInPicture="true" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

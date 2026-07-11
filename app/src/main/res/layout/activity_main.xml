@@ -76,6 +76,19 @@
                 android:fontFamily="@font/pretendard_font"
                 android:letterSpacing="-0.05"
                 android:lineSpacingMultiplier="1.2" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnStopScan"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:background="@drawable/bg_glass_button"
+                android:text="스캔 일시 정지 / 중지"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:fontFamily="@font/pretendard_font"
+                android:letterSpacing="-0.05" />
         </LinearLayout>
 
         <!-- Card 1: Accessibility Status -->

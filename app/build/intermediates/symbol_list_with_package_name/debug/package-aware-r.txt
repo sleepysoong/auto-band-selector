@@ -3183,6 +3183,7 @@ id bounceStart
 id btnEnableAccessibility
 id btnRevertAutomatic
 id btnRunMacro
+id btnStopScan
 id buttonPanel
 id cache_measures
 id callMeasure
