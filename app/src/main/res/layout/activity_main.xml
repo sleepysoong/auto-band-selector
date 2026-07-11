@@ -98,9 +98,8 @@
                 android:textSize="13sp"
                 android:layout_marginBottom="16dp" />
 
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btnEnableAccessibility"
-                style="?android:attr/borderlessButtonStyle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_glass_button"
@@ -196,9 +195,8 @@
                 android:textStyle="bold"
                 android:layout_marginBottom="12dp" />
 
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btnRunMacro"
-                style="?android:attr/borderlessButtonStyle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_glass_button_primary"
@@ -209,9 +207,8 @@
                 android:layout_marginBottom="12dp"
                 android:elevation="4dp" />
 
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btnRevertAutomatic"
-                style="?android:attr/borderlessButtonStyle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_glass_button"

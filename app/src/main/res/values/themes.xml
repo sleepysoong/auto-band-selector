@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base application theme inheriting from stable AppCompat -->
+    <style name="Theme.AutoBandSelector" parent="Theme.AppCompat.Light.NoActionBar">
+        <!-- Primary brand color. -->
+        <item name="colorPrimary">#203A43</item>
+        <item name="colorAccent">#F27121</item>
+        <!-- Status bar color. -->
+        <item name="android:statusBarColor">#0F2027</item>
+    </style>
+</resources>
