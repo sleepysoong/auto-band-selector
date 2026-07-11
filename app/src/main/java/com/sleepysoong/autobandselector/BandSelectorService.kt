@@ -10,6 +10,8 @@ import android.view.accessibility.AccessibilityNodeInfo
 
 class BandSelectorService : AccessibilityService() {
 
+    private var dialerClicked = false
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
         val rootNode = rootInActiveWindow ?: return
@@ -22,18 +24,28 @@ class BandSelectorService : AccessibilityService() {
 
         if (macroMode.isEmpty() || targetBand.isEmpty()) return
 
+        // Reset dialer click state if we are no longer in the dialer
+        val packageName = event.packageName?.toString() ?: ""
+        val isDialer = packageName.contains("dialer", ignoreCase = true) || 
+                       packageName.contains("contacts", ignoreCase = true) ||
+                       packageName.contains("sec.android.easyMime", ignoreCase = true)
+        if (!isDialer) {
+            dialerClicked = false
+        }
+
         // 0. Dialer input auto-completion
-        // Samsung dialer secret code handler is triggered by character-by-character IME input or physical clicks.
-        // Bulk setting of "*#319712358#" at once via ACTION_SET_TEXT bypasses the dialer code detector.
-        // Therefore, we set "*#319712358" (excluding the final '#'), and then programmatically
-        // click the '#' button on the dialpad to simulate a real touch event, triggering the hidden menu!
+        // Samsung domestic hidden menu is triggered by typing exactly "319712358" (no * or # prefix/suffix).
+        // Since intent launches with "319712358" pre-filled, it doesn't trigger the hidden menu automatically.
+        // We set the text to "31971235" (without the last '8') and then simulate a touch click on the '8' button!
         val digitsNode = findNodeContainingNumber(rootNode, "319712358")
         if (digitsNode != null) {
             val txt = digitsNode.text?.toString() ?: ""
-            if (!txt.contains("*#")) {
-                Log.d("BandSelectorBot", "Found dialer digits field: $txt. Writing prefix and digits without last #...")
+            val cleanTxt = txt.replace("-", "").replace(" ", "")
+            if (cleanTxt == "319712358" && !dialerClicked) {
+                dialerClicked = true
+                Log.d("BandSelectorBot", "Found dialer digits field: $txt. Typing 31971235 without last 8...")
                 val arguments = Bundle()
-                arguments.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "*#319712358")
+                arguments.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "31971235")
                 val success = digitsNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
                 Log.d("BandSelectorBot", "Set text result: $success")
                 
@@ -43,20 +55,20 @@ class BandSelectorService : AccessibilityService() {
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
-                    val hashButton = findHashButton(rootNode)
-                    if (hashButton != null) {
-                        Log.d("BandSelectorBot", "Found '#' button on dialpad, simulating click event...")
-                        var clickTarget: AccessibilityNodeInfo? = hashButton
+                    val eightButton = findEightButton(rootNode)
+                    if (eightButton != null) {
+                        Log.d("BandSelectorBot", "Found '8' button on dialpad, simulating click event...")
+                        var clickTarget: AccessibilityNodeInfo? = eightButton
                         while (clickTarget != null && !clickTarget.isClickable) {
                             clickTarget = clickTarget.parent
                         }
                         if (clickTarget != null) {
                             clickTarget.performAction(AccessibilityNodeInfo.ACTION_CLICK)
                         } else {
-                            hashButton.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                            eightButton.performAction(AccessibilityNodeInfo.ACTION_CLICK)
                         }
                     } else {
-                        Log.e("BandSelectorBot", "Could not find '#' button on the dialpad screen")
+                        Log.e("BandSelectorBot", "Could not find '8' button on the dialpad screen")
                     }
                 }
                 return
@@ -67,6 +79,9 @@ class BandSelectorService : AccessibilityService() {
         val isPasswordScreen = findNodeByText(rootNode, "Password") != null || 
                                findNodeByText(rootNode, "비밀번호") != null
         if (isPasswordScreen) {
+            // Reset dialer click state since we are inside hidden menu
+            dialerClicked = false
+            
             val pwd = when (deviceCarrier) {
                 "SKT" -> "996412"
                 "KT" -> "774632"
@@ -189,16 +204,16 @@ class BandSelectorService : AccessibilityService() {
         return null
     }
 
-    private fun findHashButton(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+    private fun findEightButton(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
         val text = root.text?.toString() ?: ""
         val desc = root.contentDescription?.toString() ?: ""
-        if (text == "#" || desc.contains("#") || desc.contains("우물정") || desc.contains("hash") || desc.contains("pound")) {
+        if (text == "8" || desc.contains("8") || desc.contains("여덟") || desc.contains("eight") || desc.contains("팔")) {
             return root
         }
         for (i in 0 until root.childCount) {
             val child = root.getChild(i)
             if (child != null) {
-                val res = findHashButton(child)
+                val res = findEightButton(child)
                 if (res != null) return res
             }
         }
