@@ -1,0 +1,25 @@
+R_DEF: Internal format may change without notice
+local
+drawable bg_glass_button
+drawable bg_glass_button_primary
+drawable bg_glass_card
+drawable bg_liquid
+id btnEnableAccessibility
+id btnRevertAutomatic
+id btnRunMacro
+id cardAccessibility
+id cardCarrier
+id cardExecute
+id cardScanProgress
+id rbKt
+id rbSkt
+id rbUplus
+id rgCarrier
+id tvAppTitle
+id tvScanCountdown
+id tvScanResults
+id tvScanStatus
+layout activity_main
+string accessibility_service_description
+string app_name
+xml accessibility_service_config

@@ -1,21 +1,14 @@
 package com.sleepysoong.autobandselector
 
 import android.accessibilityservice.AccessibilityService
-import android.accessibilityservice.GestureDescription
 import android.content.Context
 import android.content.Intent
-import android.graphics.Path
-import android.os.Handler
-import android.os.Looper
+import android.os.Bundle
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 
 class BandSelectorService : AccessibilityService() {
-
-    private var macroState = 0
-    private var isMacroRunning = false
-    private val handler = Handler(Looper.getMainLooper())
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
@@ -24,97 +17,121 @@ class BandSelectorService : AccessibilityService() {
         val prefs = getSharedPreferences("BandSelectorPrefs", Context.MODE_PRIVATE)
         val carrier = prefs.getString("carrier", "SKT") ?: "SKT"
         val macroMode = prefs.getString("macro_mode", "") ?: ""
+        val targetBand = prefs.getString("target_band_to_set", "") ?: ""
 
-        // Check if dialer is launched and macro is requested recently
-        // For simplicity, we just use the UI state to advance the macro
+        if (macroMode.isEmpty() || targetBand.isEmpty()) return
 
+        // 1. Password Auto-Input
         val isPasswordScreen = findNodeByText(rootNode, "Password") != null || 
                                findNodeByText(rootNode, "비밀번호") != null
-        
         if (isPasswordScreen) {
-            Log.d("BandSelectorBot", "Detected password screen")
             val pwd = when (carrier) {
                 "SKT" -> "996412"
                 "KT" -> "774632"
                 "LGU+" -> "0821"
                 else -> "996412"
             }
-            
-            // In Android, we can simulate typing by injecting text into EditText if accessible
-            // Or we simulate clicks on the dialpad/keyboard
             val editText = findEditableNode(rootNode)
             if (editText != null) {
-                val arguments = android.os.Bundle()
+                val arguments = Bundle()
                 arguments.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, pwd)
                 editText.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
                 
-                // Click OK button
                 val okButton = findNodeByText(rootNode, "OK") ?: findNodeByText(rootNode, "확인")
                 okButton?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
             }
+            return
         }
 
-        // Navigate: Network Settings
+        // 2. Navigation Steps
         val networkSettingsNode = findNodeByText(rootNode, "Network Settings")
         if (networkSettingsNode != null) {
             networkSettingsNode.parent?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
             return
         }
 
-        // Navigate: Network mode
         val networkModeNode = findNodeByText(rootNode, "Network mode")
         if (networkModeNode != null) {
             networkModeNode.parent?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
             return
         }
 
-        // Navigate: Band Selection
         val bandSelectionNode = findNodeByText(rootNode, "Band Selection")
         if (bandSelectionNode != null) {
             bandSelectionNode.parent?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
             return
         }
 
-        // Band Selection Screen
+        // 3. Band Selection Screen Automation
         val selectionHeader = findNodeByText(rootNode, "SELECTION")
         if (selectionHeader != null) {
-            val isForceMode = macroMode == "FORCE_BANDS"
+            Log.d("BandSelectorBot", "Target Band to set: $targetBand")
             
-            // This logic requires traversing list of checkboxes.
-            // A simplified robust way is to click "Automatic" to check it (if reverting)
-            // or uncheck Automatic and check "LTE B1" and "LTE B7" (if forcing).
+            val checkboxes = mutableListOf<AccessibilityNodeInfo>()
+            findAllCheckboxes(rootNode, checkboxes)
             
-            // To prevent infinite loops in the same screen, we'd need more careful state management
-            // Here is a basic implementation of checking/unchecking:
+            var changedAny = false
             
-            if (isForceMode) {
-                val automaticNode = findNodeByText(rootNode, "Automatic")
-                if (automaticNode?.isChecked == true) {
-                    automaticNode.parent?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            if (targetBand == "Automatic") {
+                // For Automatic, just make sure Automatic is checked
+                for (cb in checkboxes) {
+                    val text = cb.text?.toString() ?: ""
+                    if (text.contains("Automatic", ignoreCase = true)) {
+                        if (!cb.isChecked) {
+                            cb.parent?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                            changedAny = true
+                        }
+                    }
+                }
+            } else {
+                // For specific bands (e.g. LTE B1)
+                // First uncheck Automatic
+                for (cb in checkboxes) {
+                    val text = cb.text?.toString() ?: ""
+                    if (text.contains("Automatic", ignoreCase = true)) {
+                        if (cb.isChecked) {
+                            cb.parent?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                            changedAny = true
+                        }
+                    }
                 }
                 
-                val b1Node = findNodeByText(rootNode, "LTE B1")
-                if (b1Node != null && b1Node.isChecked == false) {
-                    b1Node.parent?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                }
-                
-                val b7Node = findNodeByText(rootNode, "LTE B7")
-                if (b7Node != null && b7Node.isChecked == false) {
-                    b7Node.parent?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                }
-            } else { // REVERT
-                val automaticNode = findNodeByText(rootNode, "Automatic")
-                if (automaticNode != null && automaticNode.isChecked == false) {
-                    automaticNode.parent?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                // Check target band, and uncheck other bands we don't want
+                val carrierBands = getBandsForCarrier(carrier)
+                for (cb in checkboxes) {
+                    val text = cb.text?.toString() ?: ""
+                    if (text.contains(targetBand, ignoreCase = true)) {
+                        if (!cb.isChecked) {
+                            cb.parent?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                            changedAny = true
+                        }
+                    } else {
+                        // Uncheck other carrier bands
+                        for (otherBand in carrierBands) {
+                            if (otherBand != targetBand && text.contains(otherBand, ignoreCase = true)) {
+                                if (cb.isChecked) {
+                                    cb.parent?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                                    changedAny = true
+                                }
+                            }
+                        }
+                    }
                 }
             }
             
-            // Click SELECTION
+            // Apply selection
             selectionHeader.performAction(AccessibilityNodeInfo.ACTION_CLICK)
             
-            // Finish Macro, return to Home
-            prefs.edit().putString("macro_mode", "").apply()
-            performGlobalAction(GLOBAL_ACTION_HOME)
+            // Return back to MainActivity to continue the speed test
+            if (macroMode == "SCANNING") {
+                val intent = Intent(this, MainActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                }
+                startActivity(intent)
+            } else {
+                // Done applying best or reverting. Return Home.
+                performGlobalAction(GLOBAL_ACTION_HOME)
+            }
         }
     }
 
@@ -133,6 +150,27 @@ class BandSelectorService : AccessibilityService() {
             }
         }
         return null
+    }
+
+    private fun findAllCheckboxes(root: AccessibilityNodeInfo, list: MutableList<AccessibilityNodeInfo>) {
+        if (root.className == "android.widget.CheckBox") {
+            list.add(root)
+        }
+        for (i in 0 until root.childCount) {
+            val child = root.getChild(i)
+            if (child != null) {
+                findAllCheckboxes(child, list)
+            }
+        }
+    }
+
+    private fun getBandsForCarrier(carrier: String): List<String> {
+        return when (carrier) {
+            "SKT" -> listOf("LTE B1", "LTE B3", "LTE B5", "LTE B7")
+            "KT" -> listOf("LTE B1", "LTE B3", "LTE B8")
+            "LGU+" -> listOf("LTE B1", "LTE B5", "LTE B7")
+            else -> listOf("LTE B1", "LTE B5", "LTE B7")
+        }
     }
 
     override fun onInterrupt() {
