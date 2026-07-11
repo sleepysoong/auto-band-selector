@@ -23,16 +23,16 @@
 ## 개발 계획 (마일스톤)
 *   [x] **Phase 1: 프로젝트 초기화 및 계획 수립** (현재 단계)
     *   GitHub 레포지토리 클론 및 `PROJECT.md` 작성
-*   [ ] **Phase 2: 안드로이드 프로젝트 뼈대 생성**
+*   [x] **Phase 2: 안드로이드 프로젝트 뼈대 생성**
     *   Gradle 설정 및 패키지 구조 생성
     *   `AndroidManifest.xml`에 `AccessibilityService` 및 권한 등록
-*   [ ] **Phase 3: 메인 UI 구현**
+*   [x] **Phase 3: 메인 UI 구현**
     *   접근성 서비스 활성화 상태 체크 및 설정창 이동 버튼 구현
     *   매크로 시작 버튼 구현
-*   [ ] **Phase 4: 매크로 코어 (AccessibilityService) 구현**
+*   [x] **Phase 4: 매크로 코어 (AccessibilityService) 구현**
     *   화면 전환 이벤트(Window State Changed) 감지 로직 작성
     *   노드 텍스트 기반 클릭 자동화 로직 구현 (비밀번호 입력, 메뉴 이동)
-*   [ ] **Phase 5: 밴드 선택 로직 상세화 및 최적화**
+*   [x] **Phase 5: 밴드 선택 로직 상세화 및 최적화**
     *   통신사별 비밀번호 분기 처리
     *   체크박스 상태 인식 및 체크 해제/선택 로직 정교화
 *   [ ] **Phase 6: 테스트 및 빌드**
