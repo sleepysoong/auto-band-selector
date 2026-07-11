@@ -105,6 +105,16 @@ class BandSelectorService : AccessibilityService() {
             return
         }
 
+        // 1.7. SIM Selection Dialog Auto-Dismiss (For Dual SIM devices, select SIM2)
+        val isSimSelectionScreen = findNodeByText(rootNode, "SIM Selection") != null ||
+                                   findNodeByText(rootNode, "Please Select SIM") != null
+        if (isSimSelectionScreen) {
+            Log.d("BandSelectorBot", "Found SIM Selection dialog. Selecting SIM2...")
+            val sim2Button = findNodeByText(rootNode, "SIM2") ?: findNodeByText(rootNode, "SIM 2")
+            sim2Button?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            return
+        }
+
         // 2. Navigation Steps
         val networkSettingsNode = findNodeByText(rootNode, "Network Settings")
         if (networkSettingsNode != null) {
