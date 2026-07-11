@@ -124,7 +124,7 @@ class MainActivity : AppCompatActivity() {
                 putBoolean("band_setting_applied", false)
                 apply()
             }
-            startDialerOrApp()
+            startDialer()
         }
 
         btnStopScan.setOnClickListener {
@@ -349,7 +349,7 @@ class MainActivity : AppCompatActivity() {
                 tvScanCountdown.text = "히든 메뉴 진입 시도 중..."
                 logProgress("매크로 최초 진입을 위해 전용 시스템 앱을 호출합니다.")
                 delay(1000)
-                startDialerOrApp()
+                startDialer()
             } catch (e: Exception) {
                 logProgress("카운트다운 스레드 치명적인 오류 발생: ${e.message}")
             }
@@ -389,7 +389,7 @@ class MainActivity : AppCompatActivity() {
                         apply()
                     }
                     logProgress("기기를 최고 속도 주파수($bestBand) 대역으로 영구 고정하기 위해 히든 메뉴에 진입합니다.")
-                    startDialerOrApp()
+                    startDialer()
                 }
                 return
             }
@@ -437,7 +437,7 @@ class MainActivity : AppCompatActivity() {
                     tvScanCountdown.text = "시스템 히든 메뉴 진입 중..."
                     logProgress("다음 주파수($nextBand) 측정을 위해 히든 메뉴 재설정을 호출합니다.")
                     delay(2000)
-                    startDialerOrApp()
+                    startDialer()
                 } else {
                     checkScanState()
                 }
@@ -561,68 +561,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun startDialerOrApp() {
-        val prefs = getSharedPreferences("BandSelectorPrefs", Context.MODE_PRIVATE)
-        val deviceCarrier = prefs.getString("device_carrier", "SKT") ?: "SKT"
-        
-        logProgress("히든 메뉴 진입 시퀀스 시작 (기기 캐리어: $deviceCarrier)")
-        
-        val launched = startHiddenMenuApp(deviceCarrier)
-        if (launched) {
-            logProgress("명시적 시스템 패키지 매칭 및 화면 강제 호출에 성공했습니다.")
-        } else {
-            logProgress("시스템 다이렉트 런처 탐색 실패. 기존 다이얼러 기반 딜레이 실행을 개시합니다.")
-            startDialer()
-        }
-    }
-
-    private fun startHiddenMenuApp(deviceCarrier: String): Boolean {
-        val packageName = when (deviceCarrier) {
-            "SKT" -> "com.samsung.hidden.SKT"
-            "KT" -> "com.samsung.hidden.KT"
-            "LGU+" -> "com.samsung.hidden.LGT"
-            else -> "com.samsung.hidden.SKT"
-        }
-
-        val pm = packageManager
-        try {
-            pm.getPackageInfo(packageName, 0)
-        } catch (e: Exception) {
-            logProgress("대상 통신사 히든 패키지가 단말에 부재합니다: $packageName")
-            return false
-        }
-
-        val launchIntent = pm.getLaunchIntentForPackage(packageName)
-        if (launchIntent != null) {
-            try {
-                startActivity(launchIntent)
-                return true
-            } catch (e: Exception) {
-                logProgress("Launch Intent 바인딩 실패: ${e.message}")
-            }
-        }
-
-        try {
-            val packageInfo = pm.getPackageInfo(packageName, PackageManager.GET_ACTIVITIES)
-            val activities = packageInfo.activities
-            if (!activities.isNullOrEmpty()) {
-                val mainActivity = activities[0].name
-                logProgress("패키지 액티비티 추출 완료: $mainActivity")
-                val intent = Intent().apply {
-                    setClassName(packageName, mainActivity)
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                startActivity(intent)
-                return true
-            }
-        } catch (e: Exception) {
-            logProgress("명시적 컴포넌트 호출 오류: ${e.message}")
-        }
-
-        return false
-    }
-
     private fun startDialer() {
+        logProgress("자동 입력을 위해 시스템 다이얼러 화면을 호출합니다.")
         val intent = Intent(Intent.ACTION_DIAL).apply {
             data = Uri.parse("tel:319712358")
         }
