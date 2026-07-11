@@ -23,17 +23,42 @@ class BandSelectorService : AccessibilityService() {
         if (macroMode.isEmpty() || targetBand.isEmpty()) return
 
         // 0. Dialer input auto-completion
-        // Instead of filtering by package name (which varies across Samsung firmwares),
-        // we directly search for any node containing "319712358" (with formatting removed)
+        // Samsung dialer secret code handler is triggered by character-by-character IME input or physical clicks.
+        // Bulk setting of "*#319712358#" at once via ACTION_SET_TEXT bypasses the dialer code detector.
+        // Therefore, we set "*#319712358" (excluding the final '#'), and then programmatically
+        // click the '#' button on the dialpad to simulate a real touch event, triggering the hidden menu!
         val digitsNode = findNodeContainingNumber(rootNode, "319712358")
         if (digitsNode != null) {
             val txt = digitsNode.text?.toString() ?: ""
             if (!txt.contains("*#")) {
-                Log.d("BandSelectorBot", "Found dialer digits field: $txt. Auto-typing secret code *#319712358#")
+                Log.d("BandSelectorBot", "Found dialer digits field: $txt. Writing prefix and digits without last #...")
                 val arguments = Bundle()
-                arguments.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "*#319712358#")
+                arguments.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "*#319712358")
                 val success = digitsNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
-                Log.d("BandSelectorBot", "Set text action result: $success")
+                Log.d("BandSelectorBot", "Set text result: $success")
+                
+                if (success) {
+                    try {
+                        Thread.sleep(150) // Brief pause to let text settle
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                    val hashButton = findHashButton(rootNode)
+                    if (hashButton != null) {
+                        Log.d("BandSelectorBot", "Found '#' button on dialpad, simulating click event...")
+                        var clickTarget: AccessibilityNodeInfo? = hashButton
+                        while (clickTarget != null && !clickTarget.isClickable) {
+                            clickTarget = clickTarget.parent
+                        }
+                        if (clickTarget != null) {
+                            clickTarget.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                        } else {
+                            hashButton.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                        }
+                    } else {
+                        Log.e("BandSelectorBot", "Could not find '#' button on the dialpad screen")
+                    }
+                }
                 return
             }
         }
@@ -158,6 +183,22 @@ class BandSelectorService : AccessibilityService() {
             val child = root.getChild(i)
             if (child != null) {
                 val res = findNodeContainingNumber(child, target)
+                if (res != null) return res
+            }
+        }
+        return null
+    }
+
+    private fun findHashButton(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        val text = root.text?.toString() ?: ""
+        val desc = root.contentDescription?.toString() ?: ""
+        if (text == "#" || desc.contains("#") || desc.contains("우물정") || desc.contains("hash") || desc.contains("pound")) {
+            return root
+        }
+        for (i in 0 until root.childCount) {
+            val child = root.getChild(i)
+            if (child != null) {
+                val res = findHashButton(child)
                 if (res != null) return res
             }
         }
