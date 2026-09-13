@@ -21,6 +21,17 @@ Your next move: 정밀 계획 검토가 승인된 뒤 별도 실행을 시작하
 > TL;DR (machine): Large downstream Android change, high device-compatibility risk; foreground per-run KT band scan, verified best-band apply/restore, Compose Backdrop UI.
 
 ## Scope
+### Execution amendment — user no-device instruction (authoritative)
+User explicitly said: "연결은 못하니 고려 ㄴㄴ 걍 나즁에 내가 직접 앱 깔아서 해보지 뭐". This supersedes EVERY physical-device prerequisite, physical QA completion gate and blocked-on-device clause below, including task1 and F3. Do not ask again for a connected device or stop implementation for one. Deliver an installable APK for the user to test later.
+
+- Product behavior remains unchanged: every Start fresh KT B1/B3/B8 scan, KT eSIM routing, verified state transitions, explicit Stop/Restore, Backdrop UI and root APK.
+- Task1 completes with real local JVM characterization, compiled Android instrumentation and host-runner negative tests; no connected device required. Task2 depends on independently verified Android baseline/build portion of task1; host runner may finish concurrently because it does not alter product/build inputs.
+- Replace physical tasks2-10 scenario gates with their existing deterministic JVM/Robolectric/instrumentation-build assertions, plus Android emulator native UI validation if the environment can provide an emulator. Unit or emulator evidence is labeled exactly, never "Fold6 verified".
+- No device-captured tree exists: synthetic accessibility fixtures may test logic and must be labeled synthetic. On-user-device runtime screen recognition must validate package/window/control state and fail with useful logs on unsupported firmware, rather than rely on fabricated preverified profiles.
+- KT eSIM slot is resolved from runtime subscription data and visible SIM dialog; if mapping remains ambiguous, offer explicit in-app slot choice without silently assuming SIM2. Registered-band and SELECTION state must still be observed before reporting applied; if readback is unavailable, stop with diagnostic status, never fabricate speed success.
+- Task11/F3 deliver APK hash/signature/package validation, automated results, available emulator UI evidence and a concise user install/test checklist covering fresh scan, eSIM, Stop/Restore and both Fold6 displays. Actual radio/network/folding results are explicitly NOT TESTED here and are assigned to the user's later trial.
+- Keep RED/GREEN, no skipped/weakened tests, independent verification, cleanup, source/APK equality and local direct delivery. No physical radio/posture proof is needed to complete this run under the user's amendment.
+
 ### Must have
 - Confirmed target: KT-issued Samsung Galaxy Z Fold6, KT eSIM. User explicitly selected: open app after reboot, press Start, compare speeds EVERY time, then apply fastest band. Never replace this with saved-band fast apply.
 - Preserve application ID `com.sleepysoong.autobandselector`, Korean UI, existing cat icon/Pretendard identity, carrier settings, speed results, Stop, Automatic restore, PiP progress and local log view/copy/share/delete.
@@ -107,7 +118,7 @@ Stop immediately invalidates run/attempt identity, cancels outstanding HTTP/call
 ## Todos
 > Implementation + Test = ONE todo. Never separate.
 <!-- APPEND TASK BATCHES BELOW THIS LINE WITH edit/apply_patch - never rewrite the headers above. -->
-- [ ] 1. Capture Fold6 baseline and establish native QA harness
+- [x] 1. Capture app baseline and establish native QA harness
   - Recommended task executor category: deep — native device automation and compatibility evidence.
   - What to do: Read current instructions/worktree; preserve unrelated changes. Add `script/qa/band_qa.py` and `app/src/androidTest/java/com/sleepysoong/autobandselector/qa/NativeBandQa.kt`, plus minimum test-runner dependencies needed to capture baseline. Record current APK/source hashes separately; do not assume root APK equals source. Use actual Phone UI to capture menu tree, SELECTION semantics, firmware password route, KT eSIM-to-visible-SIM mapping, `*123456#` registered LTE band readback and reversible Automatic restoration. Add JVM characterization tests `LegacyEntryContractTest` for existing KT candidate list, Start initiating scan, log FileProvider authority. Avoid private telephony APIs. Preflight read-only device facts first; radio transition QA only after existing user grant and a known working Restore route. Use LSP references before moving behavior if Kotlin LSP is available; otherwise record unavailable and inspect the two source adapters directly.
   - Test pins shared with task 2: JUnit 4.13.2, Robolectric 4.14.1 (explicit SDK34 tests), kotlinx-coroutines-test 1.7.3 aligned to existing runtime, AndroidX runner 1.6.2/rules 1.6.1/ext-junit 1.2.1, UiAutomator 2.3.0. Compose native tests use the UI test artifact matching Compose 1.12.0; dependency graph gate must catch conflicts rather than overriding metadata.
@@ -217,7 +228,7 @@ Stop immediately invalidates run/attempt identity, cancels outstanding HTTP/call
 - [ ] F2. Code quality review
   - Recommended task executor category: deep
   - Review changed code against StateFlow identity, exact screen matching, eSIM mapping, cellular Network selection, cancellation/resource cleanup and no unsupported success. Check last suite/LSP results from current source hash. Run targeted reproduction if suspected; record `final/F2.md`. Fail on concrete contract violation, not style preference.
-- [ ] F3. Real manual QA
+- [ ] F3. Local QA and manual-install handoff
   - Recommended task executor category: deep
   - Executor personally drives native `scan-live`, `restore-live`, `reboot-idle`, `fold-layout`, `lifecycle-stop` using the exact commands above, one phone owner. F1/F2/F4 may inspect while this runs, never drive phone concurrently. Capture actual screenshots and XML/result evidence, verify Automatic and restore test settings; record `final/F3.md`. Missing device/posture automation is not PASS.
 - [ ] F4. Scope fidelity
