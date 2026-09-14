@@ -5,6 +5,9 @@ import com.sleepysoong.autobandselector.data.SettingsRepository
 import com.sleepysoong.autobandselector.network.KtSubscriptionResolution
 import com.sleepysoong.autobandselector.network.KtSubscriptionResolver
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -124,6 +127,13 @@ class BandScanRuntime(
     private val orchestratorScope = CoroutineScope(scope.coroutineContext + SupervisorJob())
     private var current: BandScanOrchestrator? = null
 
+    private val published = kotlinx.coroutines.flow.MutableStateFlow<BandScanOrchestrator?>(null)
+
+    /** Combined visible state: Idle until the first Start in this process. */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val state: Flow<BandScanState> =
+        published.flatMapLatest { it?.state ?: flowOf(BandScanState.Idle) }
+
     @Synchronized fun orchestrator(): BandScanOrchestrator =
         current ?: throw IllegalStateException("Runtime start was never requested")
 
@@ -145,6 +155,7 @@ class BandScanRuntime(
                 when (val started = orchestrator.start(selected)) {
                     is BandScanStart.Started -> {
                         current = orchestrator
+                        published.value = orchestrator
                         RuntimeStart.Started(started.runId)
                     }
                     is BandScanStart.AlreadyRunning -> RuntimeStart.AlreadyRunning
@@ -159,6 +170,7 @@ class BandScanRuntime(
         val ready = resolution as? KtSubscriptionResolution.Ready
             ?: return RuntimeStart.Blocked("restore preflight failed: " + resolution.javaClass.simpleName)
         val selected = SelectedKtSubscription(ready.candidate.subscriptionId, ready.candidate.logicalSlotIndex)
+        published.value = current
         return when (val started = current.restore(selected)) {
             is BandScanStart.Started -> RuntimeStart.Started(started.runId)
             is BandScanStart.AlreadyRunning -> RuntimeStart.AlreadyRunning
