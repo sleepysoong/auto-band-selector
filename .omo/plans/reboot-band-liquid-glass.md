@@ -137,7 +137,7 @@ Stop immediately invalidates run/attempt identity, cancels outstanding HTTP/call
   - QA happy: `python3 script/qa/band_qa.py launch --evidence .omo/evidence/reboot-band-liquid-glass/build-launch` installs built debug APK and shows unchanged controls. QA failure: `./gradlew :app:lintDebug` plus harness `launch-negative` detects Activity crash/non-launch and fails, not a silent screenshot-only pass. Dependency-only change has no artificial RED requirement; preserve characterization GREEN.
   - Commit: Y | `build: align Android toolchain for Backdrop Compose UI`.
 
-- [ ] 3. Resolve KT eSIM and persist configuration without runnable state
+- [x] 3. Resolve KT eSIM and persist configuration without runnable state
   - Recommended task executor category: deep — Android subscription permissions and identity boundaries.
   - What to do: Add `network/KtSubscriptionResolver.kt`, `data/SettingsRepository.kt` and tests. Enumerate active subscriptions after READ_PHONE_STATE grant; identify KT embedded subscription by platform carrier metadata and embedded status, not display-name substring alone. If ambiguous, require explicit in-app subscription selection from actual entries; persist a logical selection without ICCID/IMSI/phone number, re-resolve each run. Require selected subId equals defaultDataSubscriptionId; otherwise blocked preflight plus system SIM settings link. Hidden-menu mapping uses observed logical slot from task 1; refuse unverified mapping. Keep existing device/SIM carrier settings, history and log sharing. Legacy scan flags are ignored/cleared before any service action; history cannot authorize work. Add READ_PHONE_STATE, ACCESS_NETWORK_STATE and CHANGE_NETWORK_STATE only where required for the cellular request; no broad new privilege.
   - Parallelization: Wave A; depends 2; blocks 6,8; lead owns manifest changes.
@@ -146,7 +146,7 @@ Stop immediately invalidates run/attempt identity, cancels outstanding HTTP/call
   - QA happy: `python3 script/qa/band_qa.py esim-preflight --evidence .omo/evidence/reboot-band-liquid-glass/esim-preflight`; correct active KT eSIM/slot shown, no dialer until Start. QA failure: `python3 script/qa/band_qa.py permission-denied --evidence .omo/evidence/reboot-band-liquid-glass/permission-denied`; deny runtime permission via native permission UI, Start blocked and zero macro actions. Restore previous grant state in cleanup.
   - Commit: Y | `fix: resolve active KT eSIM and discard stale macro authorization`.
 
-- [ ] 4. Establish a single cancellable process-local run state machine
+- [x] 4. Establish a single cancellable process-local run state machine
   - Recommended task executor category: deep — event ordering and cancellation are core logic.
   - What to do: Add `automation/MacroState.kt`, `RunCoordinator.kt`, application ownership and StateFlow output. Define typed observations/actions/results, runId/attemptId and exact states above. Start atomically creates one fresh run; second Start rejected while active. MainActivity recreation only observes, never starts tasks from onResume. Service acts only with current process-local authorization. Stop/interrupt revoke first, then cancel effects. Reboot/process restart Idle even with legacy flags. Preserve history separately; an interrupted result may be displayed without executing it. Implement deadlines with coroutine scheduler and monotonic clock, no blocking main thread.
   - Parallelization: Wave A; depends 2; blocks 5,6,7,8,9.
@@ -155,7 +155,7 @@ Stop immediately invalidates run/attempt identity, cancels outstanding HTTP/call
   - QA happy: `python3 script/qa/band_qa.py start-once --evidence .omo/evidence/reboot-band-liquid-glass/start-once`; double-tap creates one runId. QA failure: `python3 script/qa/band_qa.py stop-late-callback --evidence .omo/evidence/reboot-band-liquid-glass/stop-late-callback`; held debug probe completion released after Stop cannot advance or apply winner; no production test bypass.
   - Commit: Y | `fix: serialize macro runs and cancel stale callbacks`.
 
-- [ ] 5. Parse Samsung screens and match band controls exactly
+- [x] 5. Parse Samsung screens and match band controls exactly
   - Recommended task executor category: deep — accessibility tree interpretation and bounded navigation.
   - What to do: Add immutable screen parser using task 1 captured sanitized trees. Recognize stock dialer, password, warning, SIM dialog, network menu, overflow, band rows and SELECTION toggle by package/activity/window plus exact normalized labels/IDs. Include KT candidate B1/B3/B8 and explicit non-target rows B10/B18/B19. Represent unknown/missing/unreadable control state explicitly. Checkable semantics may live on parent/sibling; map label to owning control and verify state there. Scroll by verified container, stop at repeated signature or 20 pages. Coordinates allowed only for an identified visible node's bounds where ACTION_CLICK is unsupported and bounds remain in same verified window; never fixed recording coordinates.
   - Parallelization: Wave A; depends 4; blocks 7.
