@@ -201,7 +201,7 @@ Stop immediately invalidates run/attempt identity, cancels outstanding HTTP/call
   - QA happy: `python3 script/qa/band_qa.py fold-layout --evidence .omo/evidence/reboot-band-liquid-glass/fold-layout`; capture real cover/inner, light/dark and font1.5 states, no clipped Start/Stop/results, actual backdrop content visibly sampled. QA failure: `python3 script/qa/band_qa.py ui-permission-error --evidence .omo/evidence/reboot-band-liquid-glass/ui-permission-error`; disabled accessibility visibly blocks Start and opens correct settings instead of pretending execution. Restore font/theme/posture settings in cleanup. API26/31 emulator render checks additional only.
   - Commit: Y | `design: apply Backdrop glass UI for Fold6 scan controls`.
 
-- [ ] 10. Verify reboot, lifecycle, live scanning and restoration end to end
+- [x] 10. Verify reboot, lifecycle, live scanning and restoration end to end
   - Recommended task executor category: deep — real native GUI and integrated regression verification.
   - What to do: Complete all `band_qa.py` scenario implementations with actual UiAutomator actions and binary assertions. Runner provides no product-only shortcut to bypass Start, permissions, service or real dialer in `scan-live`/`reboot-idle`. Run current diagnostics before final Gradle suite; fix in-scope failures at original seam with RED/GREEN. Use dedicated test modes only for deterministic failure induction and label artifacts accordingly. Confirm mapped selected eSIM remains same across candidate transitions.
   - Parallelization: Wave B; depends 8,9; exclusive ownership of physical device; blocks 11.
