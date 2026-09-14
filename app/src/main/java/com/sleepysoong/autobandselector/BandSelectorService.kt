@@ -60,7 +60,11 @@ class BandSelectorService : AccessibilityService() {
             } },
             canScrollBackward = { ref -> withFreshNodeValue(ref) { node ->
                 node.actionList.any { it.id == AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD }
-            } }
+            } },
+            back = {
+                if (RuntimeBridge.currentRun() !== run || isLocked()) false
+                else performGlobalAction(GLOBAL_ACTION_BACK)
+            }
         )
     }
 

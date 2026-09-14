@@ -32,11 +32,11 @@ class RunCoordinator(
     private var active: Pending? = null
 
     /** Only an explicit user Start or Restore may call this; history is not runnable input. */
-    fun start(mode: RunMode): StartResult {
+    fun start(mode: RunMode, initialStage: MacroStage = MacroStage.Preflight): StartResult {
         val pending = synchronized(lock) {
             active?.let { return StartResult.AlreadyRunning(it.action) }
             check(scope.isActive) { "Coordinator owner is no longer active" }
-            install(MacroAction(RunId(UUID.randomUUID()), AttemptId(1), mode, MacroStage.Preflight))
+            install(MacroAction(RunId(UUID.randomUUID()), AttemptId(1), mode, initialStage))
         }
         pending.start()
         return StartResult.Started(pending.action)

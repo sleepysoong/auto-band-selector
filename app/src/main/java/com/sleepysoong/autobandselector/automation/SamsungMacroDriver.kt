@@ -12,7 +12,8 @@ class SamsungMacroDriver(
     private val expectedSimSlot: Int,
     private val targetBand: Int? = null,
     private val scroll: (NodeRef, ScrollDirection) -> Boolean = { _, _ -> false },
-    private val canScrollBackward: (NodeRef) -> Boolean? = { null }
+    private val canScrollBackward: (NodeRef) -> Boolean? = { null },
+    private val back: () -> Boolean = { false }
 ) {
     init { require(expectedSimSlot in 1..2) }
 
@@ -20,6 +21,8 @@ class SamsungMacroDriver(
     private var passwordRun: RunId? = null
     private var selectionClickRun: RunId? = null
     private var serviceCodeRun: RunId? = null
+    private var automaticClickRun: RunId? = null
+    private var backRun: RunId? = null
     private var bandRun: BandRun? = null
 
     fun isAuthorized(action: MacroAction): Boolean = isAuthorized.invoke(action)
@@ -35,10 +38,10 @@ class SamsungMacroDriver(
             MacroStage.ReadBandPage -> verifyBandPage(action, observation)
             MacroStage.ConfigureCandidate, MacroStage.ApplyWinner -> configure(action, observation, window)
             MacroStage.DisableSelection -> setSelection(action, observation, false)
-            MacroStage.NetworkModeAutomatic -> setAutomatic(action, observation, window)
+            MacroStage.NetworkModeAutomatic -> leaveForAutomatic(action, observation, window)
             MacroStage.VerifyAutomatic -> verifyAutomatic(action, observation)
-            MacroStage.VerifyCandidate, MacroStage.VerifyWinner, MacroStage.VerifyRegisteredBand ->
-                verifyRegistered(action, observation, window)
+            MacroStage.VerifyCandidate, MacroStage.VerifyWinner -> verifyFreshBandPage(action, observation)
+            MacroStage.VerifyRegisteredBand -> verifyRegistered(action, observation, window)
             else -> navigation(action, observation, window)
         }
     }
@@ -63,13 +66,17 @@ class SamsungMacroDriver(
             ScreenObservation.Overflow -> effectClick(action,
                 findClickableLabel(window.root, "Band Selection") ?: return rejected(action, "band selection unavailable"),
                 MacroStage.ReadBandPage)
+            is ScreenObservation.BandSelection ->
+                if (action.mode == RunMode.Restore) MacroResult.Advance(action, MacroStage.DisableSelection)
+                else navigation(action, observation, window)
             else -> rejected(action, "unexpected optional-SIM route screen")
         }
 
     private fun verifyBandPage(action: MacroAction, observation: ScreenObservation): MacroResult {
         val page = observation as? ScreenObservation.BandSelection ?: return rejected(action, "not band page")
-        val target = targetBand ?: return rejected(action, "missing target")
         if (!page.isReadable()) return rejected(action, "selection state is unverifiable")
+        if (action.mode == RunMode.Restore) return MacroResult.Advance(action, MacroStage.DisableSelection)
+        val target = targetBand ?: return rejected(action, "missing target")
         if (page.rows.none { it.band == target } && page.rows.isEmpty()) return rejected(action, "target band unavailable")
         return MacroResult.Advance(action, next(action.stage))
     }
@@ -180,12 +187,39 @@ class SamsungMacroDriver(
         return result
     }
 
+    private fun verifyFreshBandPage(action: MacroAction, observation: ScreenObservation): MacroResult {
+        val page = observation as? ScreenObservation.BandSelection ?: return rejected(action, "fresh band readback unavailable")
+        if (!page.isReadable()) return rejected(action, "fresh band readback is unverifiable")
+        val target = targetBand ?: return rejected(action, "missing target")
+        if (page.selectedExclusions(target).isNotEmpty()) return rejected(action, "fresh readback found non-target selection")
+        val targetRow = page.rows.singleOrNull { it.band == target }
+            ?: return rejected(action, "fresh readback lacks target band")
+        if (targetRow.control.state != CheckState.Checked) return rejected(action, "fresh readback target not selected")
+        if (page.selection.state != CheckState.Checked) return rejected(action, "fresh readback SELECTION not on")
+        return MacroResult.Complete(action)
+    }
+
+    private fun leaveForAutomatic(action: MacroAction, observation: ScreenObservation, window: WindowSnapshot): MacroResult {
+        if (action.mode != RunMode.Restore) return setAutomatic(action, observation, window)
+        if (observation is ScreenObservation.BandSelection) {
+            if (backRun == action.runId) return rejected(action, "back did not leave the band page")
+            if (!isAuthorized(action)) return failed(action, "back rejected")
+            if (!back()) return failed(action, "back rejected")
+            backRun = action.runId
+            return MacroResult.Advance(action, action.stage)
+        }
+        return setAutomatic(action, observation, window)
+    }
+
     private fun setAutomatic(action: MacroAction, observation: ScreenObservation, window: WindowSnapshot): MacroResult {
         val mode = observation as? ScreenObservation.NetworkMode ?: return navigation(action, observation, window)
         if (mode.automatic.state == CheckState.Unknown || mode.automatic.owner == null)
             return rejected(action, "automatic state is unverifiable")
         if (mode.automatic.state == CheckState.Checked) return MacroResult.Advance(action, next(action.stage))
-        return effectClick(action, mode.automatic.owner, action.stage)
+        if (automaticClickRun == action.runId) return rejected(action, "fresh Automatic readback mismatched")
+        val result = effectClick(action, mode.automatic.owner, action.stage)
+        if (result is MacroResult.Advance) automaticClickRun = action.runId
+        return result
     }
 
     private fun verifyAutomatic(action: MacroAction, observation: ScreenObservation): MacroResult {

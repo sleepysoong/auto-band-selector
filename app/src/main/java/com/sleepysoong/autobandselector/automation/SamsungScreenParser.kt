@@ -8,6 +8,11 @@ private fun <T> immutableList(values: Collection<T>): List<T> =
 private fun <T> immutableSet(values: Collection<T>): Set<T> =
     Collections.unmodifiableSet(LinkedHashSet(values))
 
+private val KNOWN_TITLES = listOf(
+    "Phone", "Warning", "Password", "SIM Selection", "Network Settings",
+    "Network mode", "More options", "Band Selection", "ServiceMode"
+)
+
 data class NodeBounds(val left: Int, val top: Int, val right: Int, val bottom: Int)
 
 /** Each snapshot owns its child list; children are themselves immutable snapshots. */
@@ -160,8 +165,13 @@ private class TreeIndex(snapshot: NodeSnapshot) {
     fun labels(label: String): List<IndexedNode> = nodes.filter { it.label == label }
 
     // Count fields before checking visibility: duplicate IDs never become a unique readback.
-    fun field(id: String): IndexedNode? =
-        nodes.filter { it.snapshot.viewId == id }.singleOrNull()?.takeIf { it.visible }
+    fun field(id: String): IndexedNode? {
+        val byId = if (id.isEmpty()) null else
+            nodes.filter { it.snapshot.viewId == id }.singleOrNull()?.takeIf { it.visible }
+        if (byId != null) return byId
+        return nodes.filter { it.snapshot.className.contains("EditText") }
+            .singleOrNull()?.takeIf { it.visible }
+    }
 
     fun descendants(node: IndexedNode): Sequence<IndexedNode> = sequence {
         for (child in children(node)) {
@@ -234,13 +244,20 @@ class SamsungScreenParser(profiles: List<ScreenProfile>) {
         parseWindow(w, expectedSimSlot).observation
 
     private fun parseWindow(w: WindowSnapshot, expectedSimSlot: Int? = null): ParsedScreen {
-        val profile = profiles.singleOrNull { it.window == w.identity && it.allowedKinds.isNotEmpty() }
-            ?: return ParsedScreen(unknown(UnknownReason.UntrustedWindow))
+        val profile = profiles.singleOrNull {
+            it.window.packageName == w.identity.packageName &&
+                (it.window.windowClass.isEmpty() || it.window.windowClass == w.identity.windowClass) &&
+                it.allowedKinds.isNotEmpty()
+        } ?: return ParsedScreen(unknown(UnknownReason.UntrustedWindow))
         val tree = TreeIndex(w.root)
         if (tree.nodes.any { it.snapshot.packageName != profile.window.packageName }) {
             return ParsedScreen(unknown(UnknownReason.UntrustedWindow))
         }
-        val title = tree.field(profile.ids.title)?.label
+        val title = profile.ids.title.takeIf { it.isNotEmpty() }
+            ?.let { id -> tree.field(id)?.label }
+            ?: KNOWN_TITLES.mapNotNull { known ->
+                tree.labels(known).takeIf { it.size == 1 }
+            }.singleOrNull()?.get(0)?.label
         val kind = when (title) {
             "Phone" -> ScreenKind.Dialer
             "Warning" -> ScreenKind.Warning
@@ -365,7 +382,11 @@ class SamsungScreenParser(profiles: List<ScreenProfile>) {
         val parsed = parseWindow(w)
         if (parsed.observation !is ScreenObservation.Dialer) return null
         val tree = TreeIndex(w.root)
-        val digits = tree.field(profiles.singleOrNull { it.window == w.identity }?.ids?.digits ?: return null) ?: return null
+        val profile = profiles.singleOrNull {
+            it.window.packageName == w.identity.packageName &&
+                (it.window.windowClass.isEmpty() || it.window.windowClass == w.identity.windowClass)
+        } ?: return null
+        val digits = tree.field(profile.ids.digits) ?: return null
         val keys = tree.nodes.filter { it.label == "8" && tree.hasClickOwner(it) }
         val eight = keys.singleOrNull() ?: return null
         return DialerControls(digits.ref, eight.ref)

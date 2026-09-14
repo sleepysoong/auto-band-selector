@@ -57,45 +57,36 @@ class LegacyEntryContractTest {
     }
 
     @Test
-    fun ktSelectionFeedsOrderedCandidatesIntoTheRealStartEntry() {
-        activity.findViewById<RadioGroup>(R.id.rgSimCarrier).check(R.id.rbSimKt)
-        assertEquals("KT", prefs.getString("sim_carrier", null))
+    fun appOpenStaysIdleAndWritesNoRunnableState() {
+        assertEquals(View.VISIBLE, activity.findViewById<View>(R.id.cardAccessibility).visibility)
+        assertEquals(View.GONE, activity.findViewById<View>(R.id.cardScanProgress).visibility)
         assertNull(shadowOf(activity).nextStartedActivity)
-        assertTrue(activity.findViewById<Button>(R.id.btnRunMacro).performClick())
-
-        // Drain the real lifecycleScope countdown with virtual time, never wall-clock waits.
-        scheduler.advanceUntilIdle()
-
-        assertEquals(listOf("LTE B1", "LTE B3", "LTE B8"),
-            prefs.getString("scan_bands", null)?.split(","))
-        assertEquals("LTE B1", prefs.getString("target_band_to_set", null))
-    }
-
-    @Test
-    fun startArmsFreshScanBeforeLaunchingTheDialerRatherThanApplyingHistory() {
-        activity.findViewById<RadioGroup>(R.id.rgSimCarrier).check(R.id.rbSimKt)
-        // Seed completed-run state after onResume, so only the Start listener can consume it.
         prefs.edit().putString("macro_mode", "APPLY_BEST")
             .putInt("scan_step", 3).putString("scan_bands", "LTE B8")
             .putString("scan_speeds", "LTE B8:99.0")
             .putString("target_band_to_set", "LTE B8")
             .putBoolean("band_setting_applied", true).commit()
+        controller.pause().stop().destroy()
+        controller = Robolectric.buildActivity(MainActivity::class.java).setup()
+        scheduler.runCurrent()
+        assertFalse(activity.isFinishing)
+        assertNull(shadowOf(activity).nextStartedActivity)
+        assertFalse("legacy runtime keys must be discarded", prefs.contains("macro_mode"))
+        assertFalse(prefs.contains("scan_bands"))
+        assertFalse(prefs.contains("band_setting_applied"))
+    }
+
+    @Test
+    fun ktSelectionPersistsAndStartWithoutGrantBlocksWithoutLaunchingDialer() {
+        activity.findViewById<RadioGroup>(R.id.rgSimCarrier).check(R.id.rbSimKt)
+        assertEquals("KT", prefs.getString("sim_carrier", null))
+        assertEquals(View.GONE, activity.findViewById<View>(R.id.cardScanProgress).visibility)
         assertTrue(activity.findViewById<Button>(R.id.btnRunMacro).performClick())
-        assertEquals(View.VISIBLE, activity.findViewById<View>(R.id.cardScanProgress).visibility)
-        assertEquals(View.GONE, activity.findViewById<View>(R.id.cardExecute).visibility)
+        scheduler.runCurrent()
+        // Robolectric has no READ_PHONE_STATE grant: Start must block, not open the hidden menu.
         assertNull(shadowOf(activity).nextStartedActivity)
-
-        scheduler.advanceUntilIdle()
-
-        assertEquals("SCANNING", prefs.getString("macro_mode", null))
-        assertEquals(0, prefs.getInt("scan_step", -1))
-        assertEquals("", prefs.getString("scan_speeds", null))
-        assertFalse(prefs.getBoolean("band_setting_applied", true))
-        assertEquals("LTE B1", prefs.getString("target_band_to_set", null))
-        val dialer = requireNotNull(shadowOf(activity).nextStartedActivity)
-        assertEquals(Intent.ACTION_DIAL, dialer.action)
-        assertEquals(Uri.parse("tel:319712358"), dialer.data)
-        assertNull(shadowOf(activity).nextStartedActivity)
+        assertFalse(prefs.contains("macro_mode"))
+        assertEquals(View.GONE, activity.findViewById<View>(R.id.cardScanProgress).visibility)
     }
 
     @Test
@@ -103,8 +94,6 @@ class LegacyEntryContractTest {
         val payload = "baseline-log-fixture\n"
         File(activity.filesDir, "logs.txt").writeText(payload)
 
-        // This private Android adapter has no stable view ID in its dynamically built dialog.
-        // Invoke it intact: real FileProvider, manifest paths, chooser and file bytes remain in play.
         MainActivity::class.java.getDeclaredMethod("shareLogFile").apply {
             isAccessible = true
         }.invoke(activity)
