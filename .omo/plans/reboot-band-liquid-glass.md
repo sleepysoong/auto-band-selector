@@ -211,7 +211,7 @@ Stop immediately invalidates run/attempt identity, cancels outstanding HTTP/call
   - QA failure: `python3 script/qa/band_qa.py lifecycle-stop --evidence .omo/evidence/reboot-band-liquid-glass/lifecycle-stop`; rotate/fold and duplicate resume during suspended sample, Stop through PiP then deliver late completion, zero subsequent actions. Also `process-death` force-stops app during test, relaunch remains idle and exposes Restore; `restore-live` verifies Automatic after interrupted state.
   - Commit: Y | `test: cover Fold6 reboot scan cancellation and recovery flows`.
 
-- [ ] 11. Publish a source-matched local APK and accurate usage guide
+- [x] 11. Publish a source-matched local APK and accurate usage guide
   - Recommended task executor category: deep — packaged APK provenance and install/launch proof.
   - What to do: Update PROJECT.md to describe KT Fold6/eSIM, Start always scans, measured data estimate, initial accessibility/runtime grants, best-band limits, Stop versus Restore, supported tested firmware and device QA evidence. Do not claim "permanent" band setting. Produce debug APK from final source matching existing sideload convention, increment versionCode/versionName from actual current values, copy build to root `auto-band-selector.apk`; do not overwrite signing keys or uninstall an incompatible installed app automatically. Record signing certificate and SHA-256; no network release upload.
   - Parallelization: Wave C; depends 10; blocks F1-F4.
