@@ -164,7 +164,7 @@ Stop immediately invalidates run/attempt identity, cancels outstanding HTTP/call
   - QA happy: `python3 script/qa/band_qa.py inspect-band-page --evidence .omo/evidence/reboot-band-liquid-glass/inspect-band-page`; parsed controls match actual UI/XML including full scroll coverage, no radio mutation. QA failure: `python3 script/qa/band_qa.py unrelated-screen --evidence .omo/evidence/reboot-band-liquid-glass/unrelated-screen`; a non-allowlisted native test activity with matching labels causes zero clicks/password input.
   - Commit: Y | `fix: parse Samsung band controls without prefix collisions`.
 
-- [ ] 6. Measure speed only over the selected KT cellular network
+- [x] 6. Measure speed only over the selected KT cellular network
   - Recommended task executor category: deep — external HTTP and subscription-bound networking.
   - What to do: Add `network/CellularSpeedProbe.kt` and tests; request TRANSPORT_CELLULAR with TelephonyNetworkSpecifier for selected subId on supported APIs, verify returned capabilities and default-data identity, bind each HTTP connection using Network.openConnection, no global binding. Since supported target Fold6 is modern, older API lacking verified subscription matching is unsupported for scan rather than silently falling back. Implement exact sample/median/error/deadline policy above. Acquire callbacks before transitions and unregister in finally; cancellation disconnects active HTTP even if blocked IO. Validated connectivity is a prerequisite, not a speed score. Never read ICCID/IMSI or log sensitive subscription identifiers. Keep endpoint query contract unchanged. An active default-network VPN is a blocked preflight condition: explain that a direct cellular comparison is unavailable while it is active; do not disable or bypass it automatically.
   - Parallelization: Wave B; depends 3,4; parallel with 7,9; blocks 8.
@@ -173,7 +173,7 @@ Stop immediately invalidates run/attempt identity, cancels outstanding HTTP/call
   - QA happy: `python3 script/qa/band_qa.py cellular-with-wifi --evidence .omo/evidence/reboot-band-liquid-glass/cellular-with-wifi`; real endpoint while Wi-Fi available, requested/returned cellular subscription verified with full byte count and measured duration. QA failure: `python3 script/qa/band_qa.py network-loss --evidence .omo/evidence/reboot-band-liquid-glass/network-loss`; native UI disables mobile data during a controlled pending sample; no valid score and HTTP/callbacks released; restore initial data/Wi-Fi settings.
   - Commit: Y | `fix: measure band speeds on the selected cellular subscription`.
 
-- [ ] 7. Drive verified band selection and ordered Automatic restoration
+- [x] 7. Drive verified band selection and ordered Automatic restoration
   - Recommended task executor category: deep — OEM UI automation requires exact postconditions.
   - What to do: Add `automation/SamsungMacroDriver.kt`, connect service adapter to coordinator. Explicitly resolve verified Samsung Phone component then ACTION_DIAL `tel:319712358`; preserve final-8 click workaround via event-driven fresh node lookup. Navigate password 774632 and known warning only in verified hidden-menu window; choose task 3 resolved SIM only when dialog appears. For each LTE candidate, establish known SELECTION-off state as needed, clear all non-target selectable bands, select exact target, ensure SELECTION on, re-open/read complete state before success. No blind "applied=true". If node state cannot express truth, use task 1 verified alternative screen readback or report unsupported; never infer from click acceptance. Restoration: SELECTION off -> Network Mode Automatic -> re-read verified mode. Package change/lock/service loss revoke run.
   - Parallelization: Wave B; depends 4,5; parallel with 6,9; blocks 8.
@@ -182,7 +182,7 @@ Stop immediately invalidates run/attempt identity, cancels outstanding HTTP/call
   - QA happy: `python3 script/qa/band_qa.py apply-restore --evidence .omo/evidence/reboot-band-liquid-glass/apply-restore`; actual KT candidate apply, repeated event without inversion, final Automatic verify. QA failure: `python3 script/qa/band_qa.py missing-target --evidence .omo/evidence/reboot-band-liquid-glass/missing-target`; debug observation boundary removes target on real screen, driver reports unsupported without clicking another band; no injected path counts as device-compatibility proof. End with verified Automatic.
   - Commit: Y | `fix: verify Samsung selection state and Automatic restoration`.
 
-- [ ] 8. Orchestrate fresh per-run KT comparisons and verified winner application
+- [x] 8. Orchestrate fresh per-run KT comparisons and verified winner application
   - Recommended task executor category: deep — integrates radio transitions, samples and recovery.
   - What to do: Implement coordinator candidate loop B1,B3,B8, three samples each, median ranking and fresh results. One network acquisition belongs to current candidate/attempt only; revoke previous callbacks on each transition. Candidate absent -> unsupported skip. Candidate no cellular/invalid sample -> restore Automatic, then next candidate if restoration verified. Driver structural/SIM mismatch -> fail stop; no valid winner -> restore Automatic. Highest median candidate must be applied and verified again before Completed. Do not use old scores or success based on network callback alone. Stop semantics remain immediate; explicit Restore separate. Keep logs bounded (1 MiB rotation, last 20 run summaries), redact passwords and subscriber identifiers, preserve copy/share/delete FileProvider behavior.
   - Parallelization: Wave B; depends 3,4,6,7; parallel only with disjoint UI task 9; blocks 10.
@@ -191,7 +191,7 @@ Stop immediately invalidates run/attempt identity, cancels outstanding HTTP/call
   - QA happy: `python3 script/qa/band_qa.py scan-live --evidence .omo/evidence/reboot-band-liquid-glass/scan-live`; real Samsung transitions and actual HTTP, samples/ranking plus final selected-band state captured. QA failure: `python3 script/qa/band_qa.py all-candidates-fail --evidence .omo/evidence/reboot-band-liquid-glass/all-candidates-fail`; debug probe produces explicit network failures, real driver restores Automatic and no success/winner displayed. Additional `scan-twice` verifies each Start creates fresh sample IDs/traffic instead of applying prior winner.
   - Commit: Y | `feat: compare KT bands on every start and apply the verified winner`.
 
-- [ ] 9. Build the Fold6 Liquid Glass interface with live run controls
+- [x] 9. Build the Fold6 Liquid Glass interface with live run controls
   - Recommended task executor category: visual-engineering — Compose visual design and adaptive interface; use deep if router unavailable.
   - What to do: Read frontend and visual-qa skills at execution. Replace main XML rendering with Compose in MainActivity; add `ui/BandSelectorScreen.kt`, `ui/GlassTheme.kt`. Preserve cat/Pretendard, Korean copy, black/white base with subtle neutral backdrop. Compact width uses one scroll column: header, accessibility/eSIM preflight card, candidate/speed card, full-width Start, persistent Stop while active, Restore and logs. Expanded width >=600dp uses controls left/results right; no giant decorative empty panel. Capture background with layerBackdrop; draw cards and primary control with ordered color/blur/lens and rounded shape, restrained glass highlights. API31-32 blur-only, API26-30 readable opaque fallback; API33+ lens. Do not let disabled effects hide content.
   - What to do (behavior): Start always fresh scan; show up-to-27MB payload notice, do not require repeated confirmation. Disable conflicting controls while running. Make Stop reachable in full screen and PiP via RemoteAction; PiP shows only current step/band/status, not dense log text. Preserve run on folding/configuration; privacy-safe log sheet retains copy/share/delete. 48dp hit targets, TalkBack labels, font scale 1.5 and dark/light contrast. No screenshots of Compose previews count as device rendering.
@@ -201,7 +201,7 @@ Stop immediately invalidates run/attempt identity, cancels outstanding HTTP/call
   - QA happy: `python3 script/qa/band_qa.py fold-layout --evidence .omo/evidence/reboot-band-liquid-glass/fold-layout`; capture real cover/inner, light/dark and font1.5 states, no clipped Start/Stop/results, actual backdrop content visibly sampled. QA failure: `python3 script/qa/band_qa.py ui-permission-error --evidence .omo/evidence/reboot-band-liquid-glass/ui-permission-error`; disabled accessibility visibly blocks Start and opens correct settings instead of pretending execution. Restore font/theme/posture settings in cleanup. API26/31 emulator render checks additional only.
   - Commit: Y | `design: apply Backdrop glass UI for Fold6 scan controls`.
 
-- [ ] 10. Verify reboot, lifecycle, live scanning and restoration end to end
+- [x] 10. Verify reboot, lifecycle, live scanning and restoration end to end
   - Recommended task executor category: deep — real native GUI and integrated regression verification.
   - What to do: Complete all `band_qa.py` scenario implementations with actual UiAutomator actions and binary assertions. Runner provides no product-only shortcut to bypass Start, permissions, service or real dialer in `scan-live`/`reboot-idle`. Run current diagnostics before final Gradle suite; fix in-scope failures at original seam with RED/GREEN. Use dedicated test modes only for deterministic failure induction and label artifacts accordingly. Confirm mapped selected eSIM remains same across candidate transitions.
   - Parallelization: Wave B; depends 8,9; exclusive ownership of physical device; blocks 11.
@@ -211,7 +211,7 @@ Stop immediately invalidates run/attempt identity, cancels outstanding HTTP/call
   - QA failure: `python3 script/qa/band_qa.py lifecycle-stop --evidence .omo/evidence/reboot-band-liquid-glass/lifecycle-stop`; rotate/fold and duplicate resume during suspended sample, Stop through PiP then deliver late completion, zero subsequent actions. Also `process-death` force-stops app during test, relaunch remains idle and exposes Restore; `restore-live` verifies Automatic after interrupted state.
   - Commit: Y | `test: cover Fold6 reboot scan cancellation and recovery flows`.
 
-- [ ] 11. Publish a source-matched local APK and accurate usage guide
+- [x] 11. Publish a source-matched local APK and accurate usage guide
   - Recommended task executor category: deep — packaged APK provenance and install/launch proof.
   - What to do: Update PROJECT.md to describe KT Fold6/eSIM, Start always scans, measured data estimate, initial accessibility/runtime grants, best-band limits, Stop versus Restore, supported tested firmware and device QA evidence. Do not claim "permanent" band setting. Produce debug APK from final source matching existing sideload convention, increment versionCode/versionName from actual current values, copy build to root `auto-band-selector.apk`; do not overwrite signing keys or uninstall an incompatible installed app automatically. Record signing certificate and SHA-256; no network release upload.
   - Parallelization: Wave C; depends 10; blocks F1-F4.
@@ -222,16 +222,16 @@ Stop immediately invalidates run/attempt identity, cancels outstanding HTTP/call
 
 ## Final verification wave
 > Runs in parallel after ALL todos. ALL must APPROVE. Surface results and wait for the user's explicit okay before declaring complete.
-- [ ] F1. Plan compliance audit
+- [x] F1. Plan compliance audit
   - Recommended task executor category: deep
   - Verify all task/criterion evidence including real source-matched APK and user decisions. Read final git diff and run `python3 script/qa/band_qa.py evidence-audit --evidence .omo/evidence/reboot-band-liquid-glass`; fail on missing result/cleanup or skipped physical scenario. No product edits. Record `final/F1.md`.
-- [ ] F2. Code quality review
+- [x] F2. Code quality review
   - Recommended task executor category: deep
   - Review changed code against StateFlow identity, exact screen matching, eSIM mapping, cellular Network selection, cancellation/resource cleanup and no unsupported success. Check last suite/LSP results from current source hash. Run targeted reproduction if suspected; record `final/F2.md`. Fail on concrete contract violation, not style preference.
-- [ ] F3. Local QA and manual-install handoff
+- [x] F3. Local QA and manual-install handoff
   - Recommended task executor category: deep
   - Executor personally drives native `scan-live`, `restore-live`, `reboot-idle`, `fold-layout`, `lifecycle-stop` using the exact commands above, one phone owner. F1/F2/F4 may inspect while this runs, never drive phone concurrently. Capture actual screenshots and XML/result evidence, verify Automatic and restore test settings; record `final/F3.md`. Missing device/posture automation is not PASS.
-- [ ] F4. Scope fidelity
+- [x] F4. Scope fidelity
   - Recommended task executor category: deep
   - Compare final source, manifest and APK with accepted user requirements. Confirm every Start measures, no boot automation/saved-fast-apply, KT eSIM not hardcoded SIM2, genuine Backdrop. Confirm no user changes overwritten or unsolicited remote publication. Record `final/F4.md`; fail on explicit-scope mismatch.
 

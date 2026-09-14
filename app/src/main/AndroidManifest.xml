@@ -7,7 +7,7 @@
     <!-- Permission to bypass permission denial in launching hidden menu on some Samsung firmwares -->
     <uses-permission android:name="com.sec.android.app.hiddenmenu.permission.KEYSTRING" />
 
-    <application
+    <application android:name=".BandSelectorApp"
         android:allowBackup="true"
         android:icon="@drawable/ic_cat_launcher"
         android:label="@string/app_name"
@@ -47,6 +47,7 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
         </service>
+            <receiver android:name=".StopScanReceiver" android:exported="false" />
     </application>
 
 </manifest>

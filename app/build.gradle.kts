@@ -12,8 +12,8 @@ android {
         applicationId = "com.sleepysoong.autobandselector"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -50,6 +50,7 @@ dependencies {
     implementation("org.jetbrains.compose.ui:ui:1.12.0")
     implementation("org.jetbrains.compose.ui:ui-graphics:1.12.0")
     implementation("io.github.kyant0:backdrop:2.0.1")
+    implementation("io.github.kyant0:shapes:1.2.1")
     debugImplementation("androidx.compose.ui:ui-test-manifest:1.12.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.14.1")
