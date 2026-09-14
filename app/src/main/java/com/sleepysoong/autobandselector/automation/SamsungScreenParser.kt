@@ -59,7 +59,8 @@ enum class CheckState { Checked, Unchecked, Unknown }
 data class NodeRef(val path: String)
 data class Control(val state: CheckState, val owner: NodeRef?)
 data class BandRow(val band: Int, val control: Control)
-data class SimOption(val slot: Int)
+data class SimOption(val slot: Int, val owner: NodeRef)
+data class DialerControls(val digits: NodeRef, val finalEight: NodeRef)
 enum class UnknownReason { UntrustedWindow, AmbiguousControl, Unsupported, InvalidScreen, ConflictingOverlap }
 
 sealed class ScreenObservation {
@@ -293,7 +294,7 @@ class SamsungScreenParser(profiles: List<ScreenProfile>) {
             if (!tree.hasClickOwner(label)) return unknown()
             val slot = match.groupValues[1].toInt()
             if (options.any { it.slot == slot }) return unknown()
-            options += SimOption(slot)
+            options += SimOption(slot, label.ref)
         }
         return ScreenObservation.SimSelection(options)
     }
@@ -357,6 +358,17 @@ class SamsungScreenParser(profiles: List<ScreenProfile>) {
         val page = BandPage(window, observation, ScrollContainer(container.ref.path), container.visible,
             container.snapshot.canScrollForward, immutableSet(visibleBands), signature)
         return ParsedScreen(observation, page)
+    }
+
+    /** Returns controls owned by this fresh, parser-verified dialer snapshot. */
+    fun dialerControls(w: WindowSnapshot): DialerControls? {
+        val parsed = parseWindow(w)
+        if (parsed.observation !is ScreenObservation.Dialer) return null
+        val tree = TreeIndex(w.root)
+        val digits = tree.field(profiles.singleOrNull { it.window == w.identity }?.ids?.digits ?: return null) ?: return null
+        val keys = tree.nodes.filter { it.label == "8" && tree.hasClickOwner(it) }
+        val eight = keys.singleOrNull() ?: return null
+        return DialerControls(digits.ref, eight.ref)
     }
 
     fun traverseBandPages(pages: List<WindowSnapshot>, target: Int): TraversalResult {

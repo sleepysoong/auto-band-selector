@@ -1,279 +1,153 @@
 package com.sleepysoong.autobandselector
 
 import android.accessibilityservice.AccessibilityService
-import android.content.Context
-import android.content.Intent
+import android.app.KeyguardManager
+import android.graphics.Rect
 import android.os.Bundle
-import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import com.sleepysoong.autobandselector.automation.*
 
+/** Android adapter only. It snapshots nodes and never retains AccessibilityNodeInfo. */
 class BandSelectorService : AccessibilityService() {
-
-    private var dialerClicked = false
+    @Volatile private var activeRun: RuntimeBridge.RunBinding? = null
+    @Volatile private var driver: SamsungMacroDriver? = null
+    @Volatile private var eventIdentity: WindowIdentity? = null
+    @Volatile private var executingAction: MacroAction? = null
+    @Volatile private var plannedScreen: Class<out ScreenObservation>? = null
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
-        val rootNode = rootInActiveWindow ?: return
-
-        val prefs = getSharedPreferences("BandSelectorPrefs", Context.MODE_PRIVATE)
-        val deviceCarrier = prefs.getString("device_carrier", "SKT") ?: "SKT"
-        val simCarrier = prefs.getString("sim_carrier", "SKT") ?: "SKT"
-        val macroMode = prefs.getString("macro_mode", "") ?: ""
-        val targetBand = prefs.getString("target_band_to_set", "") ?: ""
-
-        if (macroMode.isEmpty() || targetBand.isEmpty()) return
-
-        // Reset dialer click state if we are no longer in the dialer
-        val packageName = event.packageName?.toString() ?: ""
-        val isDialer = packageName.contains("dialer", ignoreCase = true) || 
-                       packageName.contains("contacts", ignoreCase = true) ||
-                       packageName.contains("sec.android.easyMime", ignoreCase = true)
-        if (!isDialer) {
-            dialerClicked = false
-        }
-
-        // 0. Dialer input auto-completion
-        val digitsNode = findNodeContainingNumber(rootNode, "319712358")
-        if (digitsNode != null) {
-            val txt = digitsNode.text?.toString() ?: ""
-            val cleanTxt = txt.replace("-", "").replace(" ", "")
-            if (cleanTxt == "319712358" && !dialerClicked) {
-                dialerClicked = true
-                Log.d("BandSelectorBot", "Found dialer digits field: $txt. Typing 31971235 without last 8...")
-                val arguments = Bundle()
-                arguments.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "31971235")
-                val success = digitsNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
-                Log.d("BandSelectorBot", "Set text result: $success")
-                
-                if (success) {
-                    try {
-                        Thread.sleep(150)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                    val eightButton = findEightButton(rootNode)
-                    if (eightButton != null) {
-                        Log.d("BandSelectorBot", "Found '8' button on dialpad, simulating click event...")
-                        var clickTarget: AccessibilityNodeInfo? = eightButton
-                        while (clickTarget != null && !clickTarget.isClickable) {
-                            clickTarget = clickTarget.parent
-                        }
-                        if (clickTarget != null) {
-                            clickTarget.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                        } else {
-                            eightButton.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                        }
-                    }
-                }
-                return
-            }
-        }
-
-        // 1. Password Auto-Input (Depends on Device firmware Carrier)
-        val isPasswordScreen = findNodeByText(rootNode, "Password") != null || 
-                               findNodeByText(rootNode, "비밀번호") != null
-        if (isPasswordScreen) {
-            dialerClicked = false
-            
-            val pwd = when (deviceCarrier) {
-                "SKT" -> "996412"
-                "KT" -> "774632"
-                "LGU+" -> "0821"
-                else -> "996412"
-            }
-            val editText = findEditableNode(rootNode)
-            if (editText != null) {
-                val arguments = Bundle()
-                arguments.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, pwd)
-                editText.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
-                
-                val okButton = findNodeByText(rootNode, "OK") ?: findNodeByText(rootNode, "확인")
-                okButton?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-            }
+        val run = RuntimeBridge.currentRun() ?: return detachLocal()
+        if (isLocked() || event.packageName?.toString() != run.expectedPackage) {
+            revokeRun()
             return
         }
-
-        // 1.5. Warning Dialog Auto-Dismiss (Common in domestic KT/LGT hidden menus)
-        val isWarningScreen = findNodeByText(rootNode, "숨겨진 정보로 진입하셨습니다.") != null ||
-                              findNodeByText(rootNode, "숨겨진 정보로 진입하셨습니다") != null ||
-                              findNodeByText(rootNode, "디바이스에 심각한 손상을") != null
-        if (isWarningScreen) {
-            Log.d("BandSelectorBot", "Found Warning Dialog screen. Clicking confirm to bypass...")
-            val okButton = findNodeByText(rootNode, "확인") ?: findNodeByText(rootNode, "OK")
-            okButton?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+        eventIdentity = WindowIdentity(run.expectedPackage, event.className?.toString().orEmpty())
+        if (activeRun !== run) bind(run)
+        val action = run.currentAction() ?: return
+        val activeDriver = driver ?: return
+        if (!run.isAuthorized(action)) {
+            revokeRun()
             return
         }
-
-        // 1.7. SIM Selection Dialog Auto-Dismiss (For Dual SIM devices, select SIM2)
-        val isSimSelectionScreen = findNodeByText(rootNode, "SIM Selection") != null ||
-                                   findNodeByText(rootNode, "Please Select SIM") != null
-        if (isSimSelectionScreen) {
-            Log.d("BandSelectorBot", "Found SIM Selection dialog. Selecting SIM2...")
-            val sim2Button = findNodeByText(rootNode, "SIM2") ?: findNodeByText(rootNode, "SIM 2")
-            sim2Button?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-            return
-        }
-
-        // 2. Navigation Steps
-        val networkSettingsNode = findNodeByText(rootNode, "Network Settings")
-        if (networkSettingsNode != null) {
-            networkSettingsNode.parent?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-            return
-        }
-
-        val networkModeNode = findNodeByText(rootNode, "Network mode")
-        if (networkModeNode != null) {
-            networkModeNode.parent?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-            return
-        }
-
-        val bandSelectionNode = findNodeByText(rootNode, "Band Selection")
-        if (bandSelectionNode != null) {
-            bandSelectionNode.parent?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-            return
-        }
-
-        // 3. Band Selection Screen Automation
-        val selectionHeader = findNodeByText(rootNode, "SELECTION")
-        if (selectionHeader != null) {
-            Log.d("BandSelectorBot", "Target Band to set: $targetBand")
-            
-            val checkboxes = mutableListOf<AccessibilityNodeInfo>()
-            findAllCheckboxes(rootNode, checkboxes)
-            
-            if (targetBand == "Automatic") {
-                // For Automatic, just make sure Automatic is checked
-                for (cb in checkboxes) {
-                    val text = cb.text?.toString() ?: ""
-                    if (text.contains("Automatic", ignoreCase = true)) {
-                        if (!cb.isChecked) {
-                            cb.parent?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                        }
-                    }
-                }
-            } else {
-                // For specific bands (e.g. LTE B1)
-                // First uncheck Automatic
-                for (cb in checkboxes) {
-                    val text = cb.text?.toString() ?: ""
-                    if (text.contains("Automatic", ignoreCase = true)) {
-                        if (cb.isChecked) {
-                            cb.parent?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                        }
-                    }
-                }
-                
-                // Check target band, and uncheck other bands we don't want (Depends on SIM Carrier bands)
-                val carrierBands = getBandsForCarrier(simCarrier)
-                for (cb in checkboxes) {
-                    val text = cb.text?.toString() ?: ""
-                    if (text.contains(targetBand, ignoreCase = true)) {
-                        if (!cb.isChecked) {
-                            cb.parent?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                        }
-                    } else {
-                        // Uncheck other carrier bands
-                        for (otherBand in carrierBands) {
-                            if (otherBand != targetBand && text.contains(otherBand, ignoreCase = true)) {
-                                if (cb.isChecked) {
-                                    cb.parent?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // Apply selection
-            selectionHeader.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-            
-            // Mark as applied to let MainActivity proceed
-            prefs.edit().putBoolean("band_setting_applied", true).apply()
-            
-            // Return back to MainActivity to continue the speed test
-            if (macroMode == "SCANNING") {
-                val intent = Intent(this, MainActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                }
-                startActivity(intent)
-            } else {
-                // Done applying best or reverting. Return Home.
-                performGlobalAction(GLOBAL_ACTION_HOME)
-            }
+        executingAction = action
+        try {
+            run.resultSink(activeDriver.execute(action))
+        } finally {
+            executingAction = null
         }
     }
 
-    private fun findNodeContainingNumber(root: AccessibilityNodeInfo, target: String): AccessibilityNodeInfo? {
-        val txt = root.text?.toString()?.replace("-", "")?.replace(" ", "") ?: ""
-        if (txt.contains(target)) {
-            return root
+    private fun bind(run: RuntimeBridge.RunBinding) {
+        activeRun = run
+        driver = SamsungMacroDriver(
+            parser = run.parser,
+            snapshot = ::snapshotWindow,
+            click = { ref -> withFreshNode(ref) { it.performAction(AccessibilityNodeInfo.ACTION_CLICK) } },
+            setText = { ref, value -> withFreshNode(ref) {
+                val args = Bundle().apply {
+                    putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, value)
+                }
+                it.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+            } },
+            isAuthorized = { action -> RuntimeBridge.currentRun() === run && run.isAuthorized(action) && !isLocked() },
+            expectedSimSlot = run.expectedSimSlot,
+            targetBand = run.targetBand,
+            scroll = { ref, direction -> withFreshNode(ref) {
+                it.performAction(if (direction == ScrollDirection.Forward)
+                    AccessibilityNodeInfo.ACTION_SCROLL_FORWARD else AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
+            } },
+            canScrollBackward = { ref -> withFreshNodeValue(ref) { node ->
+                node.actionList.any { it.id == AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD }
+            } }
+        )
+    }
+
+    private fun snapshotWindow(): WindowSnapshot? {
+        val run = activeRun ?: return null
+        val identity = eventIdentity ?: return null
+        val root = rootInActiveWindow ?: return null
+        if (root.packageName?.toString() != run.expectedPackage ||
+            root.className?.toString() != identity.windowClass) return null
+        val snapshot = WindowSnapshot(identity, snapshotNode(root))
+        plannedScreen = run.parser.parse(snapshot, run.expectedSimSlot).javaClass
+        return snapshot
+    }
+
+    private fun snapshotNode(node: AccessibilityNodeInfo): NodeSnapshot {
+        val bounds = Rect().also(node::getBoundsInScreen)
+        val children = ArrayList<NodeSnapshot>(node.childCount)
+        for (index in 0 until node.childCount) {
+            node.getChild(index)?.let { child -> children += snapshotNode(child) }
         }
-        for (i in 0 until root.childCount) {
-            val child = root.getChild(i)
-            if (child != null) {
-                val res = findNodeContainingNumber(child, target)
-                if (res != null) return res
-            }
+        return NodeSnapshot(
+            packageName = node.packageName?.toString().orEmpty(),
+            className = node.className?.toString().orEmpty(),
+            viewId = node.viewIdResourceName,
+            text = node.text?.toString(),
+            contentDescription = node.contentDescription?.toString(),
+            checkable = node.isCheckable,
+            checked = if (node.isCheckable) legacyChecked(node) else null,
+            clickable = node.isClickable,
+            children = children,
+            visible = node.isVisibleToUser,
+            scrollable = node.isScrollable,
+            canScrollForward = node.actionList.any { it.id == AccessibilityNodeInfo.ACTION_SCROLL_FORWARD },
+            bounds = NodeBounds(bounds.left, bounds.top, bounds.right, bounds.bottom)
+        )
+    }
+
+    private inline fun withFreshNode(ref: NodeRef, block: (AccessibilityNodeInfo) -> Boolean): Boolean =
+        withFreshNodeValue(ref, block) ?: false
+
+    private inline fun <T> withFreshNodeValue(ref: NodeRef, block: (AccessibilityNodeInfo) -> T): T? {
+        val run = activeRun ?: return null
+        val original = executingAction ?: return null
+        val current = run.currentAction() ?: return revokeStaleRoot()
+        val identity = eventIdentity ?: return revokeStaleRoot()
+        var node = rootInActiveWindow ?: return revokeStaleRoot()
+        val freshSnapshot = WindowSnapshot(identity, snapshotNode(node))
+        val freshScreen = run.parser.parse(freshSnapshot, run.expectedSimSlot)
+        if (current != original || RuntimeBridge.currentRun() !== run || !run.isAuthorized(original) ||
+            isLocked() || node.packageName?.toString() != run.expectedPackage ||
+            node.className?.toString() != identity.windowClass ||
+            freshScreen.javaClass != plannedScreen) return revokeStaleRoot()
+        for (part in ref.path.split('/').drop(1)) {
+            node = node.getChild(part.toIntOrNull() ?: return revokeStaleRoot()) ?: return revokeStaleRoot()
         }
+        return block(node)
+    }
+
+    private fun <T> revokeStaleRoot(): T? {
+        revokeRun()
         return null
     }
 
-    private fun findEightButton(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-        val text = root.text?.toString() ?: ""
-        val desc = root.contentDescription?.toString() ?: ""
-        if (text == "8" || desc.contains("8") || desc.contains("여덟") || desc.contains("eight") || desc.contains("팔")) {
-            return root
-        }
-        for (i in 0 until root.childCount) {
-            val child = root.getChild(i)
-            if (child != null) {
-                val res = findEightButton(child)
-                if (res != null) return res
-            }
-        }
-        return null
+
+    private fun legacyChecked(node: AccessibilityNodeInfo): Boolean =
+        AccessibilityNodeInfo::class.java.getMethod("isChecked").invoke(node) as Boolean
+
+    private fun isLocked(): Boolean =
+        (getSystemService(KEYGUARD_SERVICE) as? KeyguardManager)?.isDeviceLocked == true
+
+    private fun revokeRun() {
+        detachLocal()
+        RuntimeBridge.revoke()
     }
 
-    private fun findNodeByText(root: AccessibilityNodeInfo, text: String): AccessibilityNodeInfo? {
-        val list = root.findAccessibilityNodeInfosByText(text)
-        return if (list.isNotEmpty()) list[0] else null
+    private fun detachLocal() {
+        driver = null
+        activeRun = null
+        eventIdentity = null
+        plannedScreen = null
+        executingAction = null
     }
 
-    private fun findEditableNode(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-        if (root.className == "android.widget.EditText") return root
-        for (i in 0 until root.childCount) {
-            val child = root.getChild(i)
-            if (child != null) {
-                val res = findEditableNode(child)
-                if (res != null) return res
-            }
-        }
-        return null
-    }
+    override fun onInterrupt() = revokeRun()
 
-    private fun findAllCheckboxes(root: AccessibilityNodeInfo, list: MutableList<AccessibilityNodeInfo>) {
-        if (root.className == "android.widget.CheckBox") {
-            list.add(root)
-        }
-        for (i in 0 until root.childCount) {
-            val child = root.getChild(i)
-            if (child != null) {
-                findAllCheckboxes(child, list)
-            }
-        }
-    }
-
-    private fun getBandsForCarrier(carrier: String): List<String> {
-        return when (carrier) {
-            "SKT" -> listOf("LTE B1", "LTE B3", "LTE B5", "LTE B7")
-            "KT" -> listOf("LTE B1", "LTE B3", "LTE B8")
-            "LGU+" -> listOf("LTE B1", "LTE B5", "LTE B7")
-            else -> listOf("LTE B1", "LTE B5", "LTE B7")
-        }
-    }
-
-    override fun onInterrupt() {
-        Log.e("BandSelectorBot", "Service interrupted")
+    override fun onDestroy() {
+        revokeRun()
+        super.onDestroy()
     }
 }
