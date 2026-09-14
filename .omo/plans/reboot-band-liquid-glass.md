@@ -222,16 +222,16 @@ Stop immediately invalidates run/attempt identity, cancels outstanding HTTP/call
 
 ## Final verification wave
 > Runs in parallel after ALL todos. ALL must APPROVE. Surface results and wait for the user's explicit okay before declaring complete.
-- [ ] F1. Plan compliance audit
+- [x] F1. Plan compliance audit
   - Recommended task executor category: deep
   - Verify all task/criterion evidence including real source-matched APK and user decisions. Read final git diff and run `python3 script/qa/band_qa.py evidence-audit --evidence .omo/evidence/reboot-band-liquid-glass`; fail on missing result/cleanup or skipped physical scenario. No product edits. Record `final/F1.md`.
-- [ ] F2. Code quality review
+- [x] F2. Code quality review
   - Recommended task executor category: deep
   - Review changed code against StateFlow identity, exact screen matching, eSIM mapping, cellular Network selection, cancellation/resource cleanup and no unsupported success. Check last suite/LSP results from current source hash. Run targeted reproduction if suspected; record `final/F2.md`. Fail on concrete contract violation, not style preference.
-- [ ] F3. Local QA and manual-install handoff
+- [x] F3. Local QA and manual-install handoff
   - Recommended task executor category: deep
   - Executor personally drives native `scan-live`, `restore-live`, `reboot-idle`, `fold-layout`, `lifecycle-stop` using the exact commands above, one phone owner. F1/F2/F4 may inspect while this runs, never drive phone concurrently. Capture actual screenshots and XML/result evidence, verify Automatic and restore test settings; record `final/F3.md`. Missing device/posture automation is not PASS.
-- [ ] F4. Scope fidelity
+- [x] F4. Scope fidelity
   - Recommended task executor category: deep
   - Compare final source, manifest and APK with accepted user requirements. Confirm every Start measures, no boot automation/saved-fast-apply, KT eSIM not hardcoded SIM2, genuine Backdrop. Confirm no user changes overwritten or unsolicited remote publication. Record `final/F4.md`; fail on explicit-scope mismatch.
 
