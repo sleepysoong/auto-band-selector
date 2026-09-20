@@ -73,6 +73,8 @@ fun BandSelectorScreen(
     onStop: () -> Unit,
     onRestore: () -> Unit,
     onOpenAccessibility: () -> Unit,
+    onRequestPhonePermission: () -> Unit,
+    onConfirmSlot: (Int) -> Unit,
     onOpenSimSettings: () -> Unit,
     onShowLogs: () -> Unit,
     configuration: SettingsConfiguration,
@@ -94,7 +96,8 @@ fun BandSelectorScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Header(tone)
-                        PreflightCard(ui, subscriptionText, backdrop, effects, tone, onOpenAccessibility, onOpenSimSettings)
+                        PreflightCard(ui, subscriptionText, backdrop, effects, tone, onOpenAccessibility,
+                            onRequestPhonePermission, onConfirmSlot, onOpenSimSettings)
                         CarrierCard(configuration, tone, onDeviceCarrier, onSimCarrier)
                         StatusCard(ui, backdrop, effects, tone)
                         ControlsCard(ui, backdrop, effects, tone, onStart, onStop, onRestore, onShowLogs)
@@ -106,7 +109,8 @@ fun BandSelectorScreen(
                     ) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             Header(tone)
-                            PreflightCard(ui, subscriptionText, backdrop, effects, tone, onOpenAccessibility, onOpenSimSettings)
+                            PreflightCard(ui, subscriptionText, backdrop, effects, tone, onOpenAccessibility,
+                                onRequestPhonePermission, onConfirmSlot, onOpenSimSettings)
                             ControlsCard(ui, backdrop, effects, tone, onStart, onStop, onRestore, onShowLogs)
                         }
                         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),
@@ -224,6 +228,8 @@ private fun PreflightCard(
     effects: GlassEffects,
     tone: Tone,
     onOpenAccessibility: () -> Unit,
+    onRequestPhonePermission: () -> Unit,
+    onConfirmSlot: (Int) -> Unit,
     onOpenSimSettings: () -> Unit
 ) {
     GlassCard(backdrop, effects, tone) {
@@ -236,6 +242,14 @@ private fun PreflightCard(
         Spacer(Modifier.height(12.dp))
         if (ui.accessibilityActionVisible) {
             GlassButton("접근성 권한 활성화하기", "접근성 권한 활성화", true, backdrop, effects, tone, onOpenAccessibility)
+        }
+        if (ui.phonePermissionActionVisible) {
+            GlassButton("전화 권한 허용", "전화 상태 권한 요청", true, backdrop, effects, tone, onRequestPhonePermission)
+        }
+        if (ui.slotConfirmationVisible) {
+            GlassButton("SIM 1 확인", "삼성 메뉴의 SIM 1 사용", true, backdrop, effects, tone, { onConfirmSlot(0) })
+            Spacer(Modifier.height(8.dp))
+            GlassButton("SIM 2 확인", "삼성 메뉴의 SIM 2 사용", true, backdrop, effects, tone, { onConfirmSlot(1) })
         }
         if (ui.simSettingsVisible) {
             GlassButton("SIM 설정 열기", "SIM 설정 열기", true, backdrop, effects, tone, onOpenSimSettings)

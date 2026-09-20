@@ -15,7 +15,10 @@ import java.net.URL
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.job
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
 
@@ -111,6 +114,7 @@ class CellularSpeedProbe(
         data class Failed(val kind: ProbeFailure) : SampleResult
     }
 
+    @OptIn(InternalCoroutinesApi::class)
     private suspend fun runSample(subscriptionId: Int): SampleResult {
         val acquired = try {
             transport.acquire(subscriptionId)
@@ -126,51 +130,65 @@ class CellularSpeedProbe(
             return SampleResult.Failed(ProbeFailure.Cancelled(error))
         }
         var stream: InputStream? = null
+        var connection: HttpURLConnection? = null
         try {
             return withTimeout(SAMPLE_DEADLINE_MS) {
-                val startNanos = clock.nowNanos()
-                val totalBytes = run {
-                    // Blocking HTTP read runs on the caller's dispatcher so the withTimeout
-                    // deadline stays virtual-time friendly; the read loop is cancellation-checked.
-                    val connection = acquired.openConnection(URL(SAMPLE_URL)) as HttpURLConnection
-                    connection.connectTimeout = CONNECT_TIMEOUT_MS
-                    connection.readTimeout = READ_TIMEOUT_MS
-                    connection.instanceFollowRedirects = false
-                    connection.useCaches = false
-                    try {
-                        connection.connect()
-                        val code = connection.responseCode
-                        if (code != HttpURLConnection.HTTP_OK) {
-                            return@run -1L - code // negative sentinel encodes the HTTP code
-                        }
-                        var total = 0L
-                        val input = connection.inputStream
-                        stream = input
-                        val buffer = ByteArray(64 * 1024)
-                        while (true) {
-                            coroutineContext.ensureActive()
-                            val read = input.read(buffer)
-                            if (read < 0) break
-                            total += read
-                        }
-                        total
-                    } finally {
-                        connection.disconnect()
+                val cancellationHandle = coroutineContext.job.invokeOnCompletion(
+                    onCancelling = true, invokeImmediately = true
+                ) { cause ->
+                    if (cause is CancellationException) {
+                        runCatching { stream?.close() }
+                        runCatching { connection?.disconnect() }
                     }
                 }
-                when {
-                    totalBytes < 0 -> SampleResult.Failed(ProbeFailure.HttpError((-totalBytes - 1).toInt()))
-                    totalBytes != SAMPLE_BYTES -> SampleResult.Failed(ProbeFailure.IncompleteBody(totalBytes))
-                    else -> {
-                        val elapsedNanos = clock.nowNanos() - startNanos
-                        if (elapsedNanos <= 0) {
-                            SampleResult.Failed(ProbeFailure.NetworkUnavailable)
-                        } else {
-                            SampleResult.Ok(
-                                totalBytes * 8.0 / (elapsedNanos / 1_000_000_000.0) / 1_000_000.0
+                try {
+                    runInterruptible {
+                        val startNanos = clock.nowNanos()
+                        val activeConnection = acquired.openConnection(URL(SAMPLE_URL)) as HttpURLConnection
+                        connection = activeConnection
+                        activeConnection.connectTimeout = CONNECT_TIMEOUT_MS
+                        activeConnection.readTimeout = READ_TIMEOUT_MS
+                        activeConnection.instanceFollowRedirects = false
+                        activeConnection.useCaches = false
+                        val totalBytes = try {
+                            activeConnection.connect()
+                            val code = activeConnection.responseCode
+                            if (code != HttpURLConnection.HTTP_OK) {
+                                -1L - code
+                            } else {
+                                var total = 0L
+                                val input = activeConnection.inputStream
+                                stream = input
+                                val buffer = ByteArray(64 * 1024)
+                                while (true) {
+                                    val read = input.read(buffer)
+                                    if (read < 0) break
+                                    total += read
+                                }
+                                total
+                            }
+                        } finally {
+                            activeConnection.disconnect()
+                        }
+                        when {
+                            totalBytes < 0 -> SampleResult.Failed(
+                                ProbeFailure.HttpError((-totalBytes - 1).toInt())
                             )
+                            totalBytes != SAMPLE_BYTES -> SampleResult.Failed(
+                                ProbeFailure.IncompleteBody(totalBytes)
+                            )
+                            else -> {
+                                val elapsedNanos = clock.nowNanos() - startNanos
+                                if (elapsedNanos <= 0) SampleResult.Failed(ProbeFailure.NetworkUnavailable)
+                                else SampleResult.Ok(
+                                    totalBytes * 8.0 /
+                                        (elapsedNanos / 1_000_000_000.0) / 1_000_000.0
+                                )
+                            }
                         }
                     }
+                } finally {
+                    cancellationHandle.dispose()
                 }
             }
         } catch (error: kotlinx.coroutines.TimeoutCancellationException) {
@@ -180,13 +198,10 @@ class CellularSpeedProbe(
         } catch (error: java.io.InterruptedIOException) {
             return SampleResult.Failed(ProbeFailure.Timeout)
         } catch (error: CancellationException) {
-            // Disconnect the open stream so the blocking read aborts, then propagate.
-            try {
-                stream?.close()
-            } catch (_: Exception) {
-            }
             throw error
         } finally {
+            runCatching { stream?.close() }
+            runCatching { connection?.disconnect() }
             acquired.release()
         }
     }

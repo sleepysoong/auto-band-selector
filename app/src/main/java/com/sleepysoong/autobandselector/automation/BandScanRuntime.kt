@@ -1,6 +1,10 @@
 package com.sleepysoong.autobandselector.automation
 
 import android.content.Intent
+import com.sleepysoong.autobandselector.data.BandMeasurement
+import com.sleepysoong.autobandselector.data.HistoryOutcome
+import com.sleepysoong.autobandselector.data.LteBand
+import com.sleepysoong.autobandselector.data.RunHistoryEntry
 import com.sleepysoong.autobandselector.data.SettingsRepository
 import com.sleepysoong.autobandselector.network.KtSubscriptionResolution
 import com.sleepysoong.autobandselector.network.KtSubscriptionResolver
@@ -33,6 +37,7 @@ class RuntimeBandAutomation(
     private val resolver: SamsungPhoneActivityResolver,
     private val launch: (Intent) -> Unit
 ) : BandAutomation {
+    @Volatile private var activeBinding: RuntimeBridge.RunBinding? = null
 
     override suspend fun applyAndVerify(
         runId: RunId,
@@ -57,7 +62,9 @@ class RuntimeBandAutomation(
         is AutomationResult.Failed -> RestoreResult.Failed(result.reason)
     }
 
-    override fun cancel(runId: RunId) = RuntimeBridge.revoke()
+    override fun cancel(runId: RunId) {
+        activeBinding?.let(RuntimeBridge::revoke)
+    }
 
     private suspend fun operation(
         mode: RunMode,
@@ -67,7 +74,7 @@ class RuntimeBandAutomation(
     ): AutomationResult {
         val done = CompletableDeferred<MacroState>()
         val coordinator = RunCoordinator(scope, STEP_TIMEOUT_MS) { awaitCancellation() }
-        val start = coordinator.start(mode, initialStage) as? StartResult.Started
+        coordinator.start(mode, initialStage) as? StartResult.Started
             ?: return AutomationResult.Failed("coordinator unavailable")
         scope.launch {
             done.complete(coordinator.state.first { terminal ->
@@ -78,32 +85,38 @@ class RuntimeBandAutomation(
         val binding = RuntimeBridge.RunBinding.fromCoordinator(
             coordinator, parser, subscription.logicalSlotIndex, band?.number
         )
+        activeBinding = binding
         val request = RuntimeBridge.installRun(binding, resolver)
         if (request == null) {
-            RuntimeBridge.detach()
-            return AutomationResult.Unsupported("verified Samsung Phone entry is unavailable")
-        }
-        launch(request)
-        val terminal = try {
-            withTimeout(OPERATION_TIMEOUT_MS) { done.await() }
-        } catch (timeout: kotlinx.coroutines.TimeoutCancellationException) {
-            RuntimeBridge.revoke()
             (coordinator.state.value as? MacroState.Running)?.action?.let {
                 coordinator.stop(it, CancelReason.OwnerCancelled)
             }
-            return AutomationResult.Failed("operation timed out")
+            RuntimeBridge.detach(binding)
+            if (activeBinding === binding) activeBinding = null
+            return AutomationResult.Unsupported("verified Samsung Phone entry is unavailable")
         }
-        RuntimeBridge.detach()
-        return when (terminal) {
-            is MacroState.Completed -> AutomationResult.Verified
-            is MacroState.Failed -> AutomationResult.Failed(
-                when (val reason = terminal.result.reason) {
-                    FailureReason.Timeout -> "timeout"
-                    is FailureReason.EffectError -> reason.message ?: "effect failed"
-                    is FailureReason.Rejected -> reason.reason
-                })
-            is MacroState.Cancelled -> AutomationResult.Failed("cancelled")
-            else -> AutomationResult.Failed("runtime became idle before completion")
+        return try {
+            launch(request)
+            val terminal = withTimeout(OPERATION_TIMEOUT_MS) { done.await() }
+            when (terminal) {
+                is MacroState.Completed -> AutomationResult.Verified
+                is MacroState.Failed -> AutomationResult.Failed(
+                    when (val reason = terminal.result.reason) {
+                        FailureReason.Timeout -> "timeout"
+                        is FailureReason.EffectError -> reason.message ?: "effect failed"
+                        is FailureReason.Rejected -> reason.reason
+                    })
+                is MacroState.Cancelled -> AutomationResult.Failed("cancelled")
+                else -> AutomationResult.Failed("runtime became idle before completion")
+            }
+        } catch (timeout: kotlinx.coroutines.TimeoutCancellationException) {
+            AutomationResult.Failed("operation timed out")
+        } finally {
+            RuntimeBridge.detach(binding)
+            if (activeBinding === binding) activeBinding = null
+            (coordinator.state.value as? MacroState.Running)?.action?.let {
+                coordinator.stop(it, CancelReason.OwnerCancelled)
+            }
         }
     }
 
@@ -119,32 +132,39 @@ class RuntimeBandAutomation(
  */
 class BandScanRuntime(
     private val scope: CoroutineScope,
-    private val resolver: KtSubscriptionResolver,
-    private val settings: SettingsRepository,
+    private val resolutionSource: () -> KtSubscriptionResolution,
+    private val historySink: (BandScanState) -> Unit = {},
     private val automationFactory: (SelectedKtSubscription) -> BandAutomation,
     private val probeFactory: (SelectedKtSubscription) -> BandProbe
 ) {
+    constructor(
+        scope: CoroutineScope,
+        resolver: KtSubscriptionResolver,
+        settings: SettingsRepository,
+        automationFactory: (SelectedKtSubscription) -> BandAutomation,
+        probeFactory: (SelectedKtSubscription) -> BandProbe
+    ) : this(
+        scope = scope,
+        resolutionSource = { resolver.resolve(settings.confirmedLogicalSlotIndex) },
+        historySink = { terminal -> persistHistory(settings, terminal) },
+        automationFactory = automationFactory,
+        probeFactory = probeFactory
+    )
+
     private val orchestratorScope = CoroutineScope(scope.coroutineContext + SupervisorJob())
     private var current: BandScanOrchestrator? = null
-
     private val published = kotlinx.coroutines.flow.MutableStateFlow<BandScanOrchestrator?>(null)
 
-    /** Combined visible state: Idle until the first Start in this process. */
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val state: Flow<BandScanState> =
         published.flatMapLatest { it?.state ?: flowOf(BandScanState.Idle) }
 
-    @Synchronized fun orchestrator(): BandScanOrchestrator =
-        current ?: throw IllegalStateException("Runtime start was never requested")
-
-    @Synchronized fun startScan(): RuntimeStart =
-        when (val resolution = resolver.resolve(settings.confirmedLogicalSlotIndex)) {
-            KtSubscriptionResolution.PermissionRequired ->
-                RuntimeStart.Blocked("READ_PHONE_STATE")
-            is KtSubscriptionResolution.WrongDefaultData ->
-                RuntimeStart.Blocked("wrong default data subscription")
-            is KtSubscriptionResolution.SlotConfirmationRequired ->
-                RuntimeStart.Blocked("slot confirmation required")
+    @Synchronized fun startScan(): RuntimeStart {
+        if (current?.state?.value is BandScanState.Running) return RuntimeStart.AlreadyRunning
+        return when (val resolution = resolutionSource()) {
+            KtSubscriptionResolution.PermissionRequired -> RuntimeStart.Blocked("READ_PHONE_STATE")
+            is KtSubscriptionResolution.WrongDefaultData -> RuntimeStart.Blocked("wrong default data subscription")
+            is KtSubscriptionResolution.SlotConfirmationRequired -> RuntimeStart.Blocked("slot confirmation required")
             is KtSubscriptionResolution.Ready -> {
                 val selected = SelectedKtSubscription(
                     resolution.candidate.subscriptionId, resolution.candidate.logicalSlotIndex
@@ -156,6 +176,7 @@ class BandScanRuntime(
                     is BandScanStart.Started -> {
                         current = orchestrator
                         published.value = orchestrator
+                        observeTerminal(orchestrator)
                         RuntimeStart.Started(started.runId)
                     }
                     is BandScanStart.AlreadyRunning -> RuntimeStart.AlreadyRunning
@@ -163,10 +184,11 @@ class BandScanRuntime(
             }
             else -> RuntimeStart.Blocked(resolution.javaClass.simpleName)
         }
+    }
 
     @Synchronized fun restore(): RuntimeStart {
         val current = current ?: return RuntimeStart.Blocked("no previous run boundary")
-        val resolution = resolver.resolve(settings.confirmedLogicalSlotIndex)
+        val resolution = resolutionSource()
         val ready = resolution as? KtSubscriptionResolution.Ready
             ?: return RuntimeStart.Blocked("restore preflight failed: " + resolution.javaClass.simpleName)
         val selected = SelectedKtSubscription(ready.candidate.subscriptionId, ready.candidate.logicalSlotIndex)
@@ -181,5 +203,44 @@ class BandScanRuntime(
         val orchestrator = current ?: return false
         val running = (orchestrator.state.value as? BandScanState.Running) ?: return false
         return orchestrator.stop(running.runId)
+    }
+
+    private fun observeTerminal(orchestrator: BandScanOrchestrator) {
+        scope.launch {
+            val terminal = orchestrator.state.first {
+                it is BandScanState.Completed || it is BandScanState.Failed ||
+                    it is BandScanState.Cancelled
+            }
+            historySink(terminal)
+        }
+    }
+
+    private companion object {
+        fun persistHistory(settings: SettingsRepository, terminal: BandScanState) {
+            val results = when (terminal) {
+                is BandScanState.Completed -> terminal.results
+                is BandScanState.Failed -> terminal.results
+                is BandScanState.Cancelled -> terminal.results
+                else -> return
+            }
+            val outcome = when (terminal) {
+                is BandScanState.Completed -> HistoryOutcome.COMPLETED
+                is BandScanState.Failed -> HistoryOutcome.FAILED
+                is BandScanState.Cancelled -> HistoryOutcome.CANCELLED
+                BandScanState.Idle, is BandScanState.Restored, is BandScanState.Running -> return
+            }
+            val measurements = results.mapNotNull { result ->
+                val valid = result.outcome as? CandidateOutcome.Valid ?: return@mapNotNull null
+                BandMeasurement(
+                    when (result.band) {
+                        KtBand.B1 -> LteBand.LTE_B1
+                        KtBand.B3 -> LteBand.LTE_B3
+                        KtBand.B8 -> LteBand.LTE_B8
+                    },
+                    valid.medianMbps
+                )
+            }
+            settings.appendHistory(RunHistoryEntry(System.currentTimeMillis(), outcome, measurements))
+        }
     }
 }

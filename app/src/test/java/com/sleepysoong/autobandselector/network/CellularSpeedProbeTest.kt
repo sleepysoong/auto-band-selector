@@ -6,6 +6,11 @@ import java.net.HttpURLConnection
 import java.net.SocketTimeoutException
 import java.net.URL
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -60,6 +65,38 @@ class CellularSpeedProbeTest {
             closed = true
             delegate.close()
         }
+    }
+
+    private class BlockingInputStream(
+        private val started: CompletableDeferred<Unit>
+    ) : InputStream() {
+        private val release = java.util.concurrent.CountDownLatch(1)
+        @Volatile var closed = false
+
+        override fun read() = throw UnsupportedOperationException()
+
+        override fun read(b: ByteArray, off: Int, len: Int): Int {
+            started.complete(Unit)
+            release.await()
+            return -1
+        }
+
+        override fun close() {
+            closed = true
+            release.countDown()
+        }
+    }
+
+    private class BlockingConnection(
+        url: URL,
+        val stream: BlockingInputStream
+    ) : HttpURLConnection(url) {
+        @Volatile var disconnected = false
+        override fun connect() = Unit
+        override fun disconnect() { disconnected = true; stream.close() }
+        override fun usingProxy() = false
+        override fun getResponseCode() = HTTP_OK
+        override fun getInputStream(): InputStream = stream
     }
 
     private class FakeAcquired(
@@ -217,6 +254,30 @@ class CellularSpeedProbeTest {
         val clock = ScriptedClock(listOf(nanosFor(10.0)))
         val outcome = CellularSpeedProbe(transport, clock).measureSelected(5)
         assertEquals(ProbeOutcome.Failure(ProbeFailure.Timeout), outcome)
+    }
+
+    @Test(timeout = 5_000)
+    fun externalCancellationDisconnectsBlockedReadImmediately() = runBlocking {
+        val started = CompletableDeferred<Unit>()
+        val stream = BlockingInputStream(started)
+        val connection = BlockingConnection(URL("https://x/"), stream)
+        val acquired = object : AcquiredNetwork {
+            override val network: android.net.Network
+                get() = throw UnsupportedOperationException()
+            var released = false
+            override fun openConnection(url: URL) = connection
+            override fun release() { released = true }
+        }
+        val probe = CellularSpeedProbe(ScriptedTransport { acquired }, ScriptedClock(listOf(1_000_000_000L)))
+        val job = launch(Dispatchers.Default) { probe.measureSelected(41, samples = 1) }
+        started.await()
+
+        job.cancel()
+        withTimeout(5_000) { job.join() }
+
+        assertTrue(stream.closed)
+        assertTrue(connection.disconnected)
+        assertTrue(acquired.released)
     }
 
     @Test

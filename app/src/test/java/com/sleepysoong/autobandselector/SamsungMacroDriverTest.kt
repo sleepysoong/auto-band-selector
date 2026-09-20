@@ -152,6 +152,21 @@ class SamsungMacroDriverTest {
         }
     }
 
+    @Test fun staleOwnerCannotDetachNewerRuntimeBinding() {
+        val actionA = action(MacroStage.EnterMenu)
+        val actionB = action(MacroStage.EnterMenu)
+        val bindingA = RuntimeBridge.RunBinding(parser, { actionA }, {}, { it == actionA },
+            SamsungPhoneEntry.SAMSUNG_PHONE_PACKAGE, 1, 1, {})
+        val bindingB = RuntimeBridge.RunBinding(parser, { actionB }, {}, { it == actionB },
+            SamsungPhoneEntry.SAMSUNG_PHONE_PACKAGE, 1, 3, {})
+        assertNotNull(RuntimeBridge.installRun(bindingA, approvedResolver()))
+        assertNotNull(RuntimeBridge.installRun(bindingB, approvedResolver()))
+
+        RuntimeBridge.detach(bindingA)
+
+        assertSame(bindingB, RuntimeBridge.currentRun())
+    }
+
     @Test fun runCoordinatorFactorySuppliesProductionAuthorizationActionAndResultSink() = runTest {
         val coordinator = RunCoordinator(this, effect = { awaitCancellation() })
         assertTrue(coordinator.start(RunMode.Scan) is StartResult.Started)

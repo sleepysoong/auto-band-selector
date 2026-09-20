@@ -88,6 +88,23 @@ class UiStateMappingTest {
     }
 
     @Test
+    fun missingPhonePermissionShowsRecoverablePermissionAction() {
+        val preflight = ready.copy(blocked = "READ_PHONE_STATE", phonePermissionRequired = true)
+        val ui = UiStateMapper.map(BandScanState.Idle, preflight, SettingsConfiguration())
+        assertFalse(ui.startEnabled)
+        assertTrue(ui.phonePermissionActionVisible)
+        assertFalse(ui.simSettingsVisible)
+    }
+
+    @Test
+    fun unconfirmedLogicalSlotShowsExplicitSlotChoice() {
+        val preflight = ready.copy(blocked = "slot confirmation required", slotConfirmationRequired = true)
+        val ui = UiStateMapper.map(BandScanState.Idle, preflight, SettingsConfiguration())
+        assertFalse(ui.startEnabled)
+        assertTrue(ui.slotConfirmationVisible)
+    }
+
+    @Test
     fun resultRowsExposeExactBandsOnlyOnce() {
         val results = listOf(
             CandidateResult(KtBand.B1, UUID.randomUUID(), CandidateOutcome.Valid(8.0, listOf(7.0, 8.0, 9.0))),

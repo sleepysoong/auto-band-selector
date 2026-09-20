@@ -10,7 +10,9 @@ import com.sleepysoong.autobandselector.data.SettingsConfiguration
 data class PreflightUi(
     val accessibilityEnabled: Boolean,
     val subscriptionText: String?,
-    val blocked: String?
+    val blocked: String?,
+    val phonePermissionRequired: Boolean = false,
+    val slotConfirmationRequired: Boolean = false
 )
 
 data class BandRowUi(val band: Int, val status: String, val medianText: String?, val failureText: String?)
@@ -27,6 +29,8 @@ data class GlassUiState(
     val cancelled: Boolean,
     val accessibilityActionVisible: Boolean,
     val simSettingsVisible: Boolean,
+    val phonePermissionActionVisible: Boolean,
+    val slotConfirmationVisible: Boolean,
     val blockedReason: String?,
     val payloadNoticeBytes: Long,
     val rows: List<BandRowUi>
@@ -61,7 +65,10 @@ object UiStateMapper {
             },
             cancelled = cancelled,
             accessibilityActionVisible = !preflight.accessibilityEnabled,
-            simSettingsVisible = preflight.blocked != null,
+            simSettingsVisible = preflight.blocked != null &&
+                !preflight.phonePermissionRequired && !preflight.slotConfirmationRequired,
+            phonePermissionActionVisible = preflight.phonePermissionRequired,
+            slotConfirmationVisible = preflight.slotConfirmationRequired,
             blockedReason = preflight.blocked,
             payloadNoticeBytes = MAX_PAYLOAD_BYTES,
             rows = currentResults(state).map { result ->

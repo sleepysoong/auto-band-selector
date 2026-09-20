@@ -1,9 +1,11 @@
 package com.sleepysoong.autobandselector
 
+import android.Manifest
 import android.app.PendingIntent
 import android.app.PictureInPictureParams
 import android.app.RemoteAction
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.ClipboardManager
 import android.content.ClipData
 import android.content.Context
@@ -15,6 +17,7 @@ import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AlertDialog
 import androidx.compose.runtime.collectAsState
@@ -39,6 +42,9 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val activityLauncher: (Intent) -> Unit = { intent -> startActivity(intent) }
+    private val phonePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { render() }
     private lateinit var app: BandSelectorApp
     private lateinit var settingsRepository: SettingsRepository
     private var configuration = SettingsConfiguration()
@@ -81,6 +87,8 @@ class MainActivity : ComponentActivity() {
                 },
                 onRestore = { handleRuntime(app.runtime.restore()) },
                 onOpenAccessibility = { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) },
+                onRequestPhonePermission = { phonePermissionLauncher.launch(Manifest.permission.READ_PHONE_STATE) },
+                onConfirmSlot = { slot -> settingsRepository.confirmLogicalSlot(slot); render() },
                 onOpenSimSettings = { startActivity(Intent(Settings.ACTION_SETTINGS)) },
                 onShowLogs = { showLogsDialog() },
                 onDeviceCarrier = { updateCarriers(it, configuration.simCarrier) },
@@ -104,13 +112,17 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun currentPreflight(): PreflightUi {
+        val expectedService = ComponentName(this, BandSelectorService::class.java)
         val accessEnabled = Settings.Secure.getString(
             contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-        )?.contains(packageName) == true
+        ).orEmpty().split(':').mapNotNull(ComponentName::unflattenFromString)
+            .any { it == expectedService }
         val resolution = com.sleepysoong.autobandselector.network.KtSubscriptionResolver(this)
             .resolve(settingsRepository.confirmedLogicalSlotIndex)
         val blocked: String?
         val subscriptionText: String?
+        var phonePermissionRequired = false
+        var slotConfirmationRequired = false
         when (resolution) {
             is KtSubscriptionResolution.Ready -> {
                 blocked = null
@@ -123,17 +135,19 @@ class MainActivity : ComponentActivity() {
             is KtSubscriptionResolution.SlotConfirmationRequired -> {
                 blocked = "삼성 메뉴에서 표시되는 SIM 위치를 확인해야 합니다."
                 subscriptionText = null
+                slotConfirmationRequired = true
             }
             KtSubscriptionResolution.PermissionRequired -> {
                 blocked = "전화 상태 읽기 권한이 필요합니다."
                 subscriptionText = null
+                phonePermissionRequired = true
             }
             else -> {
                 blocked = "KT eSIM을 찾을 수 없습니다."
                 subscriptionText = null
             }
         }
-        return PreflightUi(accessEnabled, subscriptionText, blocked)
+        return PreflightUi(accessEnabled, subscriptionText, blocked, phonePermissionRequired, slotConfirmationRequired)
     }
 
     private fun updatePip(state: BandScanState) {
@@ -149,11 +163,13 @@ class MainActivity : ComponentActivity() {
             Icon.createWithResource(this, R.drawable.ic_cat_launcher),
             "중지", "실행 중인 스캔을 즉시 중지", stopIntent
         )
-        val params = PictureInPictureParams.Builder()
-            .setActions(listOf(stopAction))
-            .build()
-        // Enter PiP when asked by the caller; system controls actual transitions.
-        runCatching { setPictureInPictureParams(params) }
+        val builder = PictureInPictureParams.Builder().setActions(listOf(stopAction))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) builder.setAutoEnterEnabled(true)
+        val params = builder.build()
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) setPictureInPictureParams(params)
+            else if (!isInPictureInPictureMode) enterPictureInPictureMode(params)
+        }
     }
 
     private fun updateCarriers(device: Carrier, sim: Carrier) {

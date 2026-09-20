@@ -62,5 +62,18 @@ object RuntimeBridge {
         old?.onRevoked?.invoke()
     }
 
+    @Synchronized fun revoke(expected: RunBinding): Boolean {
+        if (run !== expected) return false
+        run = null
+        expected.onRevoked()
+        return true
+    }
+
+    @Synchronized fun detach(expected: RunBinding): Boolean {
+        if (run !== expected) return false
+        run = null
+        return true
+    }
+
     @Synchronized fun detach() { run = null }
 }
