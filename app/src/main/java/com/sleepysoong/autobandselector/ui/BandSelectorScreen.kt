@@ -88,7 +88,10 @@ fun BandSelectorScreen(
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth >= 600.dp
         Column(Modifier.fillMaxSize()) {
-            Box(Modifier.weight(1f).fillMaxWidth().layerBackdrop(backdrop).background(tone.background)) {
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                // Capture only the background. Capturing the glass consumers too creates
+                // a graphics-layer cycle that can crash Android's RenderThread.
+                Box(Modifier.matchParentSize().layerBackdrop(backdrop).background(tone.background))
                 if (!wide) {
                     Column(
                         Modifier.fillMaxSize().verticalScroll(rememberScrollState())

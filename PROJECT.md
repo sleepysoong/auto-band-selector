@@ -1,5 +1,15 @@
 # auto-band-selector
 
+## 1.1.1 — 시작 화면 렌더링 수정
+* Liquid Glass 배경 캡처를 그라데이션 전용 레이어로 분리했습니다. 카드와 버튼이 자신을 포함한 배경을 다시 그리는 순환 참조를 제거했습니다.
+* `StartupRenderingTest`는 메인 화면을 실제로 캡처하고 Activity 재생성 후 다시 확인합니다. GPU 렌더링 검증을 위해 하드웨어 가속 Android 기기에서 실행해야 합니다.
+* 루트 `auto-band-selector.apk`는 설치 가능한 debug 서명 빌드입니다. 실기기 크래시 해결 여부는 기기에서 추가 확인이 필요합니다.
+
+렌더링 회귀 테스트(기기 연결 후):
+```sh
+./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.sleepysoong.autobandselector.qa.StartupRenderingTest
+```
+
 ## 프로젝트 개요
 *   **제작자:** sleepysoong (hyunnn1123@naver.com)
 *   **대상 기기:** KT 출하 **Galaxy Z Fold6(KT eSIM)**. 시작 버튼을 누를 때마다 KT LTE B1/B3/B8을 새로 측정해 가장 빠른 대역을 검증 후 적용합니다.
