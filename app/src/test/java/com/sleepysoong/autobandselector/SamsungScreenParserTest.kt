@@ -28,6 +28,21 @@ class SamsungScreenParserTest {
         node(id = "list", scrollable = true, forward = forward, children = rows.toList()))
     private fun page(tree: WindowSnapshot) = parser.parse(tree) as ScreenObservation.BandSelection
 
+    @Test fun productionDialerWithoutEnglishTitleRequiresCompleteKeypadAndUniqueInput() {
+        val pkg = SamsungPhoneEntry.SAMSUNG_PHONE_PACKAGE
+        val input = NodeSnapshot(pkg, "android.widget.EditText", text = "31971235")
+        val keys = ('0'..'9').map { NodeSnapshot(pkg, text = it.toString(), clickable = true) }
+        fun window(children: List<NodeSnapshot>, packageName: String = pkg) = WindowSnapshot(
+            WindowIdentity(packageName, "android.widget.FrameLayout"), NodeSnapshot(pkg, children = children))
+        val production = SamsungProfiles.production()
+        val localized = window(listOf(NodeSnapshot(pkg, text = "전화"), input) + keys)
+        assertTrue(production.parse(localized) is ScreenObservation.Dialer)
+        assertNotNull(production.dialerControls(localized))
+        assertTrue(production.parse(window(listOf(input) + keys.dropLast(1))) is ScreenObservation.Unknown)
+        assertTrue(production.parse(window(listOf(input, input) + keys)) is ScreenObservation.Unknown)
+        assertTrue(production.parse(window(listOf(input) + keys, "other.app")) is ScreenObservation.Unknown)
+    }
+
     @Test fun canonicalBandIsExactNotAPrefix() {
         listOf(1, 3, 8, 10, 18, 19).forEach { assertEquals(it, SamsungScreenParser.canonicalBand("LTE B$it")) }
         listOf("LTE B01", "LTE B0", "LTE B1 extra", " LTE B1", "LTE B1\n", "NR B1", "lte b1", "LTE B999999999999999").forEach {

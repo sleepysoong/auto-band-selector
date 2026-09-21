@@ -34,7 +34,8 @@ object SamsungPhoneEntry {
     )
 
     fun dialIntent(resolver: SamsungPhoneActivityResolver): Intent? {
-        val implicit = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$DIAL_NUMBER")).apply {
+        // Samsung processes the secret code on the final key event, not intent prefill.
+        val implicit = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${DIAL_NUMBER.dropLast(1)}")).apply {
             `package` = SAMSUNG_PHONE_PACKAGE
         }
         val resolved = resolver.query(implicit)

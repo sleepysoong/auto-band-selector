@@ -268,7 +268,14 @@ class SamsungScreenParser(profiles: List<ScreenProfile>) {
             "More options" -> ScreenKind.Overflow
             "Band Selection" -> ScreenKind.BandSelection
             "ServiceMode" -> ScreenKind.RegisteredLte
-            else -> return ParsedScreen(unknown())
+            else -> {
+                // Localized dialers may expose no English title. Require a unique input and
+                // every numeric key in the already trusted package before recognizing one.
+                val keypad = ('0'..'9').all { hasButton(tree, it.toString()) }
+                if (title == null && keypad && tree.field(profile.ids.digits) != null)
+                    ScreenKind.Dialer
+                else return ParsedScreen(unknown())
+            }
         }
         if (kind !in profile.allowedKinds) return ParsedScreen(unknown())
         val observation = when (kind) {

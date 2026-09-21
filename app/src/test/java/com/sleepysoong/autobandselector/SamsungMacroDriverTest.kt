@@ -98,10 +98,10 @@ class SamsungMacroDriverTest {
             listOf(ResolvedPhoneActivity(approvedComponent, exported = true, enabled = true))
         })
         assertEquals(Intent.ACTION_DIAL, query?.action)
-        assertEquals("tel:319712358", query?.dataString)
+        assertEquals("tel:31971235", query?.dataString)
         assertEquals(SamsungPhoneEntry.SAMSUNG_PHONE_PACKAGE, query?.`package`)
         assertEquals(Intent.ACTION_DIAL, request?.action)
-        assertEquals("tel:319712358", request?.dataString)
+        assertEquals("tel:31971235", request?.dataString)
         assertEquals(approvedComponent, request?.component)
     }
 
@@ -135,7 +135,7 @@ class SamsungMacroDriverTest {
 
         val request = RuntimeBridge.installRun(binding, approvedResolver())
         assertEquals(Intent.ACTION_DIAL, request?.action)
-        assertEquals("tel:319712358", request?.dataString)
+        assertEquals("tel:31971235", request?.dataString)
         assertEquals(approvedComponent, request?.component)
 
         val controller = Robolectric.buildService(BandSelectorService::class.java).create()
@@ -216,11 +216,21 @@ class SamsungMacroDriverTest {
         assertEquals(listOf("text:0/1:31971235", "click:0/3"), trace)
     }
 
-    @Test fun prefixNotSetByThisRunCannotAuthorizeFinalEight() {
+    @Test fun prefilledFullNumberIsRewrittenAndFinalEightIsClickedOnce() {
+        fun dialer(value: String) = screen("Phone", n(value, "digits"), n("8", clickable = true))
+        val trace = mutableListOf<String>()
+        val run = action(MacroStage.EnterMenu)
+        val d = driver(ArrayDeque(listOf(dialer("319712358"), dialer("31971235"),
+            dialer("319712358"))), trace = trace)
+        repeat(3) { assertTrue(d.execute(run.copy(attemptId = AttemptId(it + 1L))) is MacroResult.Advance) }
+        assertEquals(listOf("text:0/1:31971235", "click:0/2"), trace)
+    }
+
+    @Test fun intentPrefilledPrefixTriggersFinalKeyWithoutWaitingForRedundantTextChange() {
         val page = screen("Phone", n("31971235", "digits"), n("8", clickable = true))
         val trace = mutableListOf<String>()
         driver(ArrayDeque(listOf(page)), trace = trace).execute(action(MacroStage.EnterMenu))
-        assertEquals(listOf("text:0/1:31971235"), trace)
+        assertEquals(listOf("click:0/2"), trace)
     }
 
     @Test fun verifiedRouteFollowsOnlyProductionTransitionsFromAuthorizedEntry() {

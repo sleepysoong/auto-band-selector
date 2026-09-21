@@ -17,7 +17,7 @@ class SamsungMacroDriver(
 ) {
     init { require(expectedSimSlot in 1..2) }
 
-    private var dialPrefixRun: RunId? = null
+    private var dialTriggeredRun: RunId? = null
     private var passwordRun: RunId? = null
     private var selectionClickRun: RunId? = null
     private var serviceCodeRun: RunId? = null
@@ -284,17 +284,19 @@ class SamsungMacroDriver(
         val normalized = nodeAt(window.root, controls.digits)?.text?.filter(Char::isDigit).orEmpty()
         val prefix = SamsungPhoneEntry.DIAL_NUMBER.dropLast(1)
         return when {
-            normalized == prefix && dialPrefixRun == action.runId -> {
+            dialTriggeredRun == action.runId -> MacroResult.Advance(action, action.stage)
+            normalized == prefix -> {
                 val owner = findClickableLabel(window.root, "8")
                     ?: return rejected(action, "final digit owner unavailable")
                 if (!authorizedClick(action, owner)) failed(action, "final digit click rejected")
-                else MacroResult.Advance(action, action.stage)
+                else {
+                    dialTriggeredRun = action.runId
+                    MacroResult.Advance(action, action.stage)
+                }
             }
-            normalized == SamsungPhoneEntry.DIAL_NUMBER -> MacroResult.Advance(action, action.stage)
             else -> {
                 if (!authorizedSetText(action, controls.digits, prefix)) failed(action, "dialer entry rejected")
                 else {
-                    dialPrefixRun = action.runId
                     MacroResult.Advance(action, action.stage)
                 }
             }
