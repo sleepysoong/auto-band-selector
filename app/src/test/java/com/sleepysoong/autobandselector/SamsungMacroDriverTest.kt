@@ -491,7 +491,7 @@ class SamsungMacroDriverTest {
         }
     }
 
-    @Test fun packageChangeInterruptAndServiceLossRevokeAndStopDispatch() {
+    @Test fun foreignWindowTransitionIsIgnoredButInterruptAndServiceLossRevoke() {
         fun installed(revocations: MutableList<String>, results: MutableList<MacroResult>, current: MacroAction) {
             RuntimeBridge.installRun(RuntimeBridge.RunBinding(parser, { current }, { results += it }, { it == current },
                 SamsungPhoneEntry.SAMSUNG_PHONE_PACKAGE, 1, 1, { revocations += "revoked" }),
@@ -505,19 +505,19 @@ class SamsungMacroDriverTest {
         try {
             installed(revocations, results, current)
             controller.get().onAccessibilityEvent(wrong)
-            assertEquals(listOf("revoked"), revocations)
-            assertNull(RuntimeBridge.currentRun())
+            assertTrue(revocations.isEmpty())
+            assertNotNull(RuntimeBridge.currentRun())
             controller.get().onAccessibilityEvent(wrong)
             assertTrue(results.isEmpty())
+            assertTrue(revocations.isEmpty())
 
-            installed(revocations, results, current)
             controller.get().onInterrupt()
-            assertEquals(2, revocations.size)
+            assertEquals(1, revocations.size)
             assertNull(RuntimeBridge.currentRun())
 
             installed(revocations, results, current)
             controller.destroy()
-            assertEquals(3, revocations.size)
+            assertEquals(2, revocations.size)
             assertNull(RuntimeBridge.currentRun())
         } finally {
         }

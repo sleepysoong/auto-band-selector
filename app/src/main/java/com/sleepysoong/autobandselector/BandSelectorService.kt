@@ -19,12 +19,15 @@ class BandSelectorService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
         val run = RuntimeBridge.currentRun() ?: return detachLocal()
-        // The Start click and progress updates may arrive while the dialer is opening.
-        if (!isLocked() && event.packageName?.toString() == packageName) return
-        if (isLocked() || event.packageName?.toString() != run.expectedPackage) {
+        if (isLocked()) {
             revokeRun()
             return
         }
+        // Launching the dialer emits transient events from this app, System UI and the launcher.
+        // They are not evidence that accessibility was lost. Only the allowlisted dialer root is
+        // ever snapshotted or authorized to perform an action; service loss is handled by the
+        // lifecycle callbacks and an unresponsive launch is bounded by the coordinator timeout.
+        if (event.packageName?.toString() != run.expectedPackage) return
         eventIdentity = WindowIdentity(run.expectedPackage, event.className?.toString().orEmpty())
         if (activeRun !== run) bind(run)
         val action = run.currentAction() ?: return
