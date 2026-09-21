@@ -9,7 +9,7 @@ private fun <T> immutableSet(values: Collection<T>): Set<T> =
     Collections.unmodifiableSet(LinkedHashSet(values))
 
 private val KNOWN_TITLES = listOf(
-    "Phone", "Warning", "Password", "SIM Selection", "Network Settings",
+    "Phone", "Warning", "Password", "SIM Selection", "Network Settings", "KT Hidden Menu", "Network Setting",
     "Network mode", "More options", "Band Selection", "ServiceMode"
 )
 
@@ -46,7 +46,7 @@ data class ScreenFieldIds(
 )
 
 enum class ScreenKind {
-    Dialer, Warning, HiddenPassword, SimSelection, NetworkSettings,
+    Dialer, Warning, HiddenPassword, SimSelection, HiddenMenu, NetworkSettings,
     NetworkMode, Overflow, BandSelection, RegisteredLte
 }
 
@@ -77,6 +77,7 @@ sealed class ScreenObservation {
         val options: List<SimOption> = immutableList(options)
     }
     object NetworkSettings : ScreenObservation()
+    object HiddenMenu : ScreenObservation()
     data class NetworkMode(val automatic: Control) : ScreenObservation()
     object Overflow : ScreenObservation()
     data class RegisteredLte(val band: Int, val simSlot: Int) : ScreenObservation()
@@ -255,6 +256,7 @@ class SamsungScreenParser(profiles: List<ScreenProfile>) {
         }
         val title = profile.ids.title.takeIf { it.isNotEmpty() }
             ?.let { id -> tree.field(id)?.label }
+            ?: tree.labels("KT Hidden Menu").singleOrNull()?.label
             ?: KNOWN_TITLES.mapNotNull { known ->
                 tree.labels(known).takeIf { it.size == 1 }
             }.singleOrNull()?.get(0)?.label
@@ -263,7 +265,8 @@ class SamsungScreenParser(profiles: List<ScreenProfile>) {
             "Warning" -> ScreenKind.Warning
             "Password" -> ScreenKind.HiddenPassword
             "SIM Selection" -> ScreenKind.SimSelection
-            "Network Settings" -> ScreenKind.NetworkSettings
+            "KT Hidden Menu" -> ScreenKind.HiddenMenu
+            "Network Settings", "Network Setting" -> ScreenKind.NetworkSettings
             "Network mode" -> ScreenKind.NetworkMode
             "More options" -> ScreenKind.Overflow
             "Band Selection" -> ScreenKind.BandSelection
@@ -283,6 +286,7 @@ class SamsungScreenParser(profiles: List<ScreenProfile>) {
             ScreenKind.Warning -> parseWarning(tree)
             ScreenKind.HiddenPassword -> parsePassword(tree, profile.ids)
             ScreenKind.SimSelection -> parseSimSelection(tree, profile.ids)
+            ScreenKind.HiddenMenu -> if (hasButton(tree, "Network Setting")) ScreenObservation.HiddenMenu else unknown()
             ScreenKind.NetworkSettings -> parseNetworkSettings(tree)
             ScreenKind.NetworkMode -> parseNetworkMode(tree)
             ScreenKind.Overflow -> parseOverflow(tree)

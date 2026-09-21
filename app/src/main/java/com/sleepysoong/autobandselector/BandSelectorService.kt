@@ -27,8 +27,12 @@ class BandSelectorService : AccessibilityService() {
         // They are not evidence that accessibility was lost. Only the allowlisted dialer root is
         // ever snapshotted or authorized to perform an action; service loss is handled by the
         // lifecycle callbacks and an unresponsive launch is bounded by the coordinator timeout.
-        if (event.packageName?.toString() != run.expectedPackage) return
-        eventIdentity = WindowIdentity(run.expectedPackage, event.className?.toString().orEmpty())
+        val eventPackage = event.packageName?.toString() ?: return
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            (application as? BandSelectorApp)?.logs?.append("화면 전환: 패키지=$eventPackage")
+        }
+        if (eventPackage !in SamsungProfiles.supportedPackages) return
+        eventIdentity = WindowIdentity(eventPackage, event.className?.toString().orEmpty())
         if (activeRun !== run) bind(run)
         val action = run.currentAction() ?: return
         val activeDriver = driver ?: return
@@ -44,7 +48,7 @@ class BandSelectorService : AccessibilityService() {
                 is MacroResult.Complete -> "검증 완료"
                 is MacroResult.Failure -> "실패=${result.reason}"
             }
-            (application as? BandSelectorApp)?.logs?.append("접근성 ${action.stage}: $detail")
+            (application as? BandSelectorApp)?.logs?.append("접근성 ${action.stage} [$eventPackage, ${plannedScreen?.simpleName}]: $detail")
             run.resultSink(result)
         } finally {
             executingAction = null
@@ -82,10 +86,10 @@ class BandSelectorService : AccessibilityService() {
 
     private fun snapshotWindow(): WindowSnapshot? {
         val run = activeRun ?: return null
-        val root = rootInActiveWindow ?: return null
-        if (root.packageName?.toString() != run.expectedPackage) return null
+        val expected = eventIdentity?.packageName ?: return null
+        val root = rootForPackage(expected) ?: return null
         // Content-change events identify the changed child, not the window's root class.
-        val identity = WindowIdentity(run.expectedPackage, root.className?.toString().orEmpty())
+        val identity = WindowIdentity(expected, root.className?.toString().orEmpty())
         eventIdentity = identity
         val snapshot = WindowSnapshot(identity, snapshotNode(root))
         plannedScreen = run.parser.parse(snapshot, run.expectedSimSlot).javaClass
@@ -118,16 +122,26 @@ class BandSelectorService : AccessibilityService() {
     private inline fun withFreshNode(ref: NodeRef, block: (AccessibilityNodeInfo) -> Boolean): Boolean =
         withFreshNodeValue(ref, block) ?: false
 
+    private fun rootForPackage(expected: String): AccessibilityNodeInfo? {
+        if (expected !in SamsungProfiles.supportedPackages) return null
+        val active = rootInActiveWindow
+        if (active?.packageName?.toString() == expected) return active
+        // Our PiP can own focus while the menu remains in an interactive window.
+        if (active?.packageName?.toString() != packageName) return null
+        return windows.mapNotNull { it.root }
+            .filter { it.packageName?.toString() == expected }.singleOrNull()
+    }
+
     private inline fun <T> withFreshNodeValue(ref: NodeRef, block: (AccessibilityNodeInfo) -> T): T? {
         val run = activeRun ?: return null
         val original = executingAction ?: return null
         val current = run.currentAction() ?: return revokeStaleRoot()
         val identity = eventIdentity ?: return revokeStaleRoot()
-        var node = rootInActiveWindow ?: return revokeStaleRoot()
+        var node = rootForPackage(identity.packageName) ?: return revokeStaleRoot()
         val freshSnapshot = WindowSnapshot(identity, snapshotNode(node))
         val freshScreen = run.parser.parse(freshSnapshot, run.expectedSimSlot)
         if (current != original || RuntimeBridge.currentRun() !== run || !run.isAuthorized(original) ||
-            isLocked() || node.packageName?.toString() != run.expectedPackage ||
+            isLocked() || node.packageName?.toString() != identity.packageName ||
             node.className?.toString() != identity.windowClass ||
             freshScreen.javaClass != plannedScreen) return revokeStaleRoot()
         for (part in ref.path.split('/').drop(1)) {

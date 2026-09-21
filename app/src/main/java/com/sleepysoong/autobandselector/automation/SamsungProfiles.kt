@@ -6,13 +6,16 @@ package com.sleepysoong.autobandselector.automation
  * UntrustedWindow by construction; runtime must fail closed on unsupported firmware.
  */
 object SamsungProfiles {
+    const val HIDDEN_MENU_PACKAGE = "com.sec.android.app.hiddenmenu"
+    val supportedPackages = setOf(SamsungPhoneEntry.SAMSUNG_PHONE_PACKAGE, HIDDEN_MENU_PACKAGE)
+
     fun production(): SamsungScreenParser = SamsungScreenParser(
-        listOf(
+        supportedPackages.map { packageName ->
             ScreenProfile(
-                WindowIdentity(SamsungPhoneEntry.SAMSUNG_PHONE_PACKAGE, ""),
+                WindowIdentity(packageName, ""),
                 ScreenKind.entries.toSet(),
                 ScreenFieldIds(title = "", digits = "", password = "", rat = "", band = "", sim = "")
             )
-        )
+        }
     )
 }

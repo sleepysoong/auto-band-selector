@@ -43,6 +43,19 @@ class SamsungScreenParserTest {
         assertTrue(production.parse(window(listOf(input) + keys, "other.app")) is ScreenObservation.Unknown)
     }
 
+    @Test fun ktMenuNeedsUniqueClickableNetworkSettingInTrustedPackage() {
+        val pkg = SamsungProfiles.HIDDEN_MENU_PACKAGE
+        fun menu(targets: List<NodeSnapshot>, packageName: String = pkg) = WindowSnapshot(
+            WindowIdentity(packageName, "View"), NodeSnapshot(packageName, children =
+                listOf(NodeSnapshot(packageName, text = "KT Hidden Menu")) + targets))
+        val target = NodeSnapshot(pkg, text = "Network Setting", clickable = true)
+        val production = SamsungProfiles.production()
+        assertTrue(production.parse(menu(listOf(target))) is ScreenObservation.HiddenMenu)
+        assertTrue(production.parse(menu(listOf(target, target))) is ScreenObservation.Unknown)
+        assertTrue(production.parse(menu(emptyList())) is ScreenObservation.Unknown)
+        assertTrue(production.parse(menu(emptyList(), "other.app")) is ScreenObservation.Unknown)
+    }
+
     @Test fun canonicalBandIsExactNotAPrefix() {
         listOf(1, 3, 8, 10, 18, 19).forEach { assertEquals(it, SamsungScreenParser.canonicalBand("LTE B$it")) }
         listOf("LTE B01", "LTE B0", "LTE B1 extra", " LTE B1", "LTE B1\n", "NR B1", "lte b1", "LTE B999999999999999").forEach {

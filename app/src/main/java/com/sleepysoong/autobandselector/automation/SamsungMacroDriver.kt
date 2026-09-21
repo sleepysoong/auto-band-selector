@@ -48,6 +48,9 @@ class SamsungMacroDriver(
 
     private fun chooseSim(action: MacroAction, observation: ScreenObservation, window: WindowSnapshot): MacroResult =
         when (observation) {
+            ScreenObservation.HiddenMenu -> effectClick(action,
+                findClickableLabel(window.root, "Network Setting") ?: return rejected(action, "network setting unavailable"),
+                MacroStage.ChooseSimIfShown)
             is ScreenObservation.SimSelection -> {
                 val option = observation.options.singleOrNull { it.slot == expectedSimSlot }
                     ?: return rejected(action, "resolved SIM slot is absent or ambiguous")
@@ -247,6 +250,9 @@ class SamsungMacroDriver(
 
     private fun navigation(action: MacroAction, observation: ScreenObservation, window: WindowSnapshot): MacroResult {
         return when (observation) {
+            ScreenObservation.HiddenMenu -> effectClick(action,
+                findClickableLabel(window.root, "Network Setting") ?: return rejected(action, "network setting unavailable"),
+                MacroStage.ChooseSimIfShown)
             ScreenObservation.Warning -> effectClick(action,
                 findClickableLabel(window.root, "OK") ?: return rejected(action, "warning control unavailable"),
                 if (action.stage == MacroStage.EnterMenu) MacroStage.ChooseSimIfShown else action.stage)

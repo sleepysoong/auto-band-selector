@@ -473,6 +473,27 @@ class SamsungMacroDriverTest {
             children = listOf(accessibilityNode(packageName, text = "Band Selection", id = "title"), selection, list))
     }
 
+    @Test fun hiddenMenuPackageEventClicksOnlyNetworkSettingFromScreenshot() {
+        val pkg = SamsungProfiles.HIDDEN_MENU_PACKAGE
+        val current = action(MacroStage.EnterMenu)
+        val results = mutableListOf<MacroResult>()
+        RuntimeBridge.installRun(RuntimeBridge.RunBinding(SamsungProfiles.production(), { current },
+            { results += it }, { it == current }, identity.packageName, 1, 1, {}), approvedResolver())
+        val target = accessibilityNode(pkg, text = "Network Setting", clickable = true)
+        val unrelated = accessibilityNode(pkg, text = "System", clickable = true)
+        RootShadow.currentRoot = accessibilityNode(pkg, children = listOf(
+            accessibilityNode(pkg, text = "KT Hidden Menu"), target, unrelated))
+        val controller = Robolectric.buildService(BandSelectorService::class.java).create()
+        try {
+            controller.get().onAccessibilityEvent(AccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED).apply {
+                packageName = pkg
+            })
+            assertEquals(listOf(AccessibilityNodeInfo.ACTION_CLICK), shadowOf(target).performedActions)
+            assertTrue(shadowOf(unrelated).performedActions.isEmpty())
+            assertEquals(MacroResult.Advance(current, MacroStage.ChooseSimIfShown), results.single())
+        } finally { controller.destroy() }
+    }
+
     @Test fun rootPackageReplacementAfterPlanRevokesAndPerformsZeroSideEffects() {
         val current = action(MacroStage.ConfigureCandidate)
         val results = mutableListOf<MacroResult>()
