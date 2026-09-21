@@ -21,6 +21,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,6 +57,57 @@ import com.sleepysoong.autobandselector.data.Carrier
 import com.sleepysoong.autobandselector.data.SettingsConfiguration
 
 private val pretendard = FontFamily(Font(R.font.pretendard))
+
+@Composable
+fun GlassLogDialog(
+    logs: String,
+    onDismiss: () -> Unit,
+    onCopy: () -> Unit,
+    onClear: () -> Unit,
+    onShare: () -> Unit
+) {
+    val tone = Tone(!isSystemInDarkTheme())
+    val effects = supportedGlassEffects(Build.VERSION.SDK_INT)
+    // Dialogs have their own window: capture a local background, never the dialog contents.
+    val backdrop = rememberLayerBackdrop()
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        BoxWithConstraints(Modifier.fillMaxWidth().padding(20.dp)) {
+            Box(Modifier.fillMaxWidth().heightIn(max = maxHeight * 0.85f).clip(RoundedCornerShape(28.dp))) {
+                Box(Modifier.matchParentSize().layerBackdrop(backdrop).background(tone.background))
+                GlassCard(backdrop, effects, tone) {
+                    SectionTitle("누적 시스템 로그", tone)
+                    Spacer(Modifier.height(8.dp))
+                    Body("길게 눌러 텍스트를 선택할 수 있습니다.", tone)
+                    Spacer(Modifier.height(12.dp))
+                    Column(Modifier.weight(1f, fill = false).fillMaxWidth()
+                        .verticalScroll(rememberScrollState())) {
+                        SelectionContainer {
+                            Body(logs.ifEmpty { "저장된 로그 기록이 없습니다." }, tone)
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(Modifier.weight(1f)) {
+                            GlassButton("전체 복사", "전체 로그 복사", logs.isNotEmpty(), backdrop, effects, tone, onCopy)
+                        }
+                        Box(Modifier.weight(1f)) {
+                            GlassButton("초기화", "로그 초기화", logs.isNotEmpty(), backdrop, effects, tone, onClear)
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(Modifier.weight(1f)) {
+                            GlassButton("공유", "로그 공유", logs.isNotEmpty(), backdrop, effects, tone, onShare)
+                        }
+                        Box(Modifier.weight(1f)) {
+                            GlassButton("닫기", "로그 닫기", true, backdrop, effects, tone, onDismiss)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 private class Tone(val light: Boolean) {
     val content = if (light) Color(0xFF141417) else Color.White
@@ -152,7 +206,7 @@ private fun Header(tone: Tone) {
 
 @Composable
 private fun GlassCard(backdrop: Backdrop, effects: GlassEffects, tone: Tone,
-    content: @Composable () -> Unit) {
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()

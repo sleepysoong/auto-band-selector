@@ -41,6 +41,7 @@ class BandScanRuntimeTest {
         )
 
         assertTrue(runtime.startScan() is RuntimeStart.Started)
+        assertEquals(RuntimeStart.AlreadyRunning, runtime.startScan())
         runCurrent()
         assertEquals(RuntimeStart.AlreadyRunning, runtime.startScan())
         assertTrue(runtime.stop())

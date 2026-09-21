@@ -19,6 +19,8 @@ class BandSelectorService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
         val run = RuntimeBridge.currentRun() ?: return detachLocal()
+        // The Start click and progress updates may arrive while the dialer is opening.
+        if (!isLocked() && event.packageName?.toString() == packageName) return
         if (isLocked() || event.packageName?.toString() != run.expectedPackage) {
             revokeRun()
             return
@@ -33,7 +35,14 @@ class BandSelectorService : AccessibilityService() {
         }
         executingAction = action
         try {
-            run.resultSink(activeDriver.execute(action))
+            val result = activeDriver.execute(action)
+            val detail = when (result) {
+                is MacroResult.Advance -> "다음=${result.nextStage}"
+                is MacroResult.Complete -> "검증 완료"
+                is MacroResult.Failure -> "실패=${result.reason}"
+            }
+            (application as? BandSelectorApp)?.logs?.append("접근성 ${action.stage}: $detail")
+            run.resultSink(result)
         } finally {
             executingAction = null
         }
@@ -70,10 +79,11 @@ class BandSelectorService : AccessibilityService() {
 
     private fun snapshotWindow(): WindowSnapshot? {
         val run = activeRun ?: return null
-        val identity = eventIdentity ?: return null
         val root = rootInActiveWindow ?: return null
-        if (root.packageName?.toString() != run.expectedPackage ||
-            root.className?.toString() != identity.windowClass) return null
+        if (root.packageName?.toString() != run.expectedPackage) return null
+        // Content-change events identify the changed child, not the window's root class.
+        val identity = WindowIdentity(run.expectedPackage, root.className?.toString().orEmpty())
+        eventIdentity = identity
         val snapshot = WindowSnapshot(identity, snapshotNode(root))
         plannedScreen = run.parser.parse(snapshot, run.expectedSimSlot).javaClass
         return snapshot

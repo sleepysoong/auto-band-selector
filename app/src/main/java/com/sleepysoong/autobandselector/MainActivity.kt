@@ -14,29 +14,27 @@ import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
-import androidx.appcompat.app.AlertDialog
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import com.sleepysoong.autobandselector.automation.BandScanState
 import com.sleepysoong.autobandselector.automation.RuntimeStart
 import com.sleepysoong.autobandselector.network.KtSubscriptionResolution
 import com.sleepysoong.autobandselector.ui.BandSelectorScreen
+import com.sleepysoong.autobandselector.ui.GlassLogDialog
 import com.sleepysoong.autobandselector.ui.PreflightUi
 import com.sleepysoong.autobandselector.ui.UiStateMapper
 import com.sleepysoong.autobandselector.data.Carrier
 import com.sleepysoong.autobandselector.data.SettingsConfiguration
 import com.sleepysoong.autobandselector.data.SettingsRepository
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -48,6 +46,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var app: BandSelectorApp
     private lateinit var settingsRepository: SettingsRepository
     private var configuration = SettingsConfiguration()
+    private var logsVisible by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -90,10 +89,26 @@ class MainActivity : ComponentActivity() {
                 onRequestPhonePermission = { phonePermissionLauncher.launch(Manifest.permission.READ_PHONE_STATE) },
                 onConfirmSlot = { slot -> settingsRepository.confirmLogicalSlot(slot); render() },
                 onOpenSimSettings = { startActivity(Intent(Settings.ACTION_SETTINGS)) },
-                onShowLogs = { showLogsDialog() },
+                onShowLogs = { logsVisible = true },
                 onDeviceCarrier = { updateCarriers(it, configuration.simCarrier) },
                 onSimCarrier = { updateCarriers(configuration.deviceCarrier, it) }
             )
+            if (logsVisible) {
+                val logs by app.logs.text.collectAsState()
+                GlassLogDialog(
+                    logs = logs,
+                    onDismiss = { logsVisible = false },
+                    onCopy = {
+                        val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("logs", app.logs.text.value))
+                        Toast.makeText(this, "전체 로그를 복사했습니다.", Toast.LENGTH_SHORT).show()
+                    },
+                    onClear = {
+                        if (!app.logs.clear()) Toast.makeText(this, "로그 초기화에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                    },
+                    onShare = ::shareLogFile
+                )
+            }
         }
     }
 
@@ -178,33 +193,7 @@ class MainActivity : ComponentActivity() {
         render()
     }
 
-    private fun logText(): String = try {
-        openFileInput("logs.txt").use { it.bufferedReader().readText() }
-    } catch (error: Exception) { "저장된 로그 기록이 없습니다." }
-
-    private fun writeLog(message: String) {
-        val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
-        try {
-            val file = File(filesDir, "logs.txt")
-            if (file.length() > 1024 * 1024) file.writeText(file.readText().takeLast(768 * 1024))
-            openFileOutput("logs.txt", Context.MODE_APPEND).use {
-                it.write(("[" + timestamp + "] " + message + "\n").toByteArray())
-            }
-        } catch (error: Exception) { Log.e("BandSelectorLog", "log write failed", error) }
-    }
-
-    private fun showLogsDialog() {
-        AlertDialog.Builder(this)
-            .setTitle("누적 시스템 로그 기록")
-            .setMessage(logText())
-            .setPositiveButton("복사") { _, _ ->
-                val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(ClipData.newPlainText("logs", logText()))
-            }
-            .setNeutralButton("공유") { _, _ -> shareLogFile() }
-            .setNegativeButton("삭제") { _, _ -> deleteFile("logs.txt") }
-            .show()
-    }
+    private fun writeLog(message: String) = app.logs.append(message)
 
     private fun shareLogFile() {
         val file = File(filesDir, "logs.txt")

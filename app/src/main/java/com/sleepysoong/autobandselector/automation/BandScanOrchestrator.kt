@@ -146,10 +146,10 @@ class BandScanOrchestrator(
     private var active: ActiveRun? = null
 
     fun start(subscription: SelectedKtSubscription): BandScanStart =
-        launchRun { runId -> scan(runId, subscription) }
+        launchRun(ScanPhase.ApplyingCandidate) { runId -> scan(runId, subscription) }
 
     fun restore(subscription: SelectedKtSubscription): BandScanStart =
-        launchRun { runId -> restoreOnly(runId, subscription) }
+        launchRun(ScanPhase.RestoringAutomatic) { runId -> restoreOnly(runId, subscription) }
 
     fun stop(runId: RunId): Boolean {
         val stopped = synchronized(lock) {
@@ -168,7 +168,7 @@ class BandScanOrchestrator(
         return true
     }
 
-    private fun launchRun(block: suspend (RunId) -> Unit): BandScanStart {
+    private fun launchRun(initialPhase: ScanPhase, block: suspend (RunId) -> Unit): BandScanStart {
         val installed = synchronized(lock) {
             active?.let { return BandScanStart.AlreadyRunning(it.runId) }
             val runId = runIdFactory()
@@ -181,7 +181,10 @@ class BandScanOrchestrator(
                     failIfCurrent(runId, failure.message ?: failure.javaClass.simpleName, emptyList())
                 }
             }
-            ActiveRun(runId, job).also { active = it }
+            ActiveRun(runId, job).also {
+                active = it
+                mutableState.value = BandScanState.Running(runId, initialPhase, null, emptyList())
+            }
         }
         installed.job.start()
         return BandScanStart.Started(installed.runId)

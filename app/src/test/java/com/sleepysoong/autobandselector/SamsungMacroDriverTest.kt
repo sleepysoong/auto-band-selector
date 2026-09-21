@@ -167,6 +167,23 @@ class SamsungMacroDriverTest {
         assertSame(bindingB, RuntimeBridge.currentRun())
     }
 
+    @Test fun ownStartButtonEventDoesNotCancelPendingPhoneLaunch() {
+        val current = action(MacroStage.EnterMenu)
+        val binding = RuntimeBridge.RunBinding(parser, { current }, {}, { true },
+            SamsungPhoneEntry.SAMSUNG_PHONE_PACKAGE, 1, 1, { fail("must not revoke") })
+        RuntimeBridge.installRun(binding, approvedResolver())
+        val controller = Robolectric.buildService(BandSelectorService::class.java).create()
+        try {
+            controller.get().onAccessibilityEvent(AccessibilityEvent(AccessibilityEvent.TYPE_VIEW_CLICKED).apply {
+                packageName = controller.get().packageName
+            })
+            assertSame(binding, RuntimeBridge.currentRun())
+        } finally {
+            RuntimeBridge.detach()
+            controller.destroy()
+        }
+    }
+
     @Test fun runCoordinatorFactorySuppliesProductionAuthorizationActionAndResultSink() = runTest {
         val coordinator = RunCoordinator(this, effect = { awaitCancellation() })
         assertTrue(coordinator.start(RunMode.Scan) is StartResult.Started)

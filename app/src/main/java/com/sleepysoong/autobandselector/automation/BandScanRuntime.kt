@@ -19,6 +19,7 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withContext
 
 sealed interface RuntimeStart {
     data class Started(val runId: RunId) : RuntimeStart
@@ -35,6 +36,7 @@ class RuntimeBandAutomation(
     private val scope: CoroutineScope,
     private val parser: SamsungScreenParser,
     private val resolver: SamsungPhoneActivityResolver,
+    private val log: (String) -> Unit = {},
     private val launch: (Intent) -> Unit
 ) : BandAutomation {
     @Volatile private var activeBinding: RuntimeBridge.RunBinding? = null
@@ -72,6 +74,9 @@ class RuntimeBandAutomation(
         subscription: SelectedKtSubscription,
         band: KtBand?
     ): AutomationResult {
+        if (subscription.logicalSlotIndex !in 0..1) {
+            return AutomationResult.Unsupported("지원하지 않는 SIM 슬롯입니다.")
+        }
         val done = CompletableDeferred<MacroState>()
         val coordinator = RunCoordinator(scope, STEP_TIMEOUT_MS) { awaitCancellation() }
         coordinator.start(mode, initialStage) as? StartResult.Started
@@ -83,30 +88,28 @@ class RuntimeBandAutomation(
             })
         }
         val binding = RuntimeBridge.RunBinding.fromCoordinator(
-            coordinator, parser, subscription.logicalSlotIndex, band?.number
+            coordinator, parser, subscription.logicalSlotIndex + 1, band?.number
         )
         activeBinding = binding
-        val request = RuntimeBridge.installRun(binding, resolver)
-        if (request == null) {
-            (coordinator.state.value as? MacroState.Running)?.action?.let {
-                coordinator.stop(it, CancelReason.OwnerCancelled)
-            }
-            RuntimeBridge.detach(binding)
-            if (activeBinding === binding) activeBinding = null
-            return AutomationResult.Unsupported("verified Samsung Phone entry is unavailable")
-        }
         return try {
-            launch(request)
+            log("삼성 전화 앱 확인: SIM ${subscription.logicalSlotIndex + 1}, 단계=$initialStage")
+            val request = RuntimeBridge.installRun(binding, resolver)
+            if (request == null) {
+                log("삼성 전화 앱 진입 실패: 지원되는 전화 화면을 찾을 수 없습니다.")
+                return AutomationResult.Unsupported("삼성 전화 앱을 찾을 수 없거나 지원되지 않는 진입 화면입니다.")
+            }
+            withContext(Dispatchers.Main.immediate) { launch(request) }
+            log("삼성 전화 앱 실행 요청 완료. 접근성 화면 응답을 기다립니다.")
             val terminal = withTimeout(OPERATION_TIMEOUT_MS) { done.await() }
             when (terminal) {
                 is MacroState.Completed -> AutomationResult.Verified
                 is MacroState.Failed -> AutomationResult.Failed(
                     when (val reason = terminal.result.reason) {
-                        FailureReason.Timeout -> "timeout"
+                        FailureReason.Timeout -> "${terminal.result.action.stage}: 15초 안에 접근성 화면 응답이 없습니다."
                         is FailureReason.EffectError -> reason.message ?: "effect failed"
                         is FailureReason.Rejected -> reason.reason
                     })
-                is MacroState.Cancelled -> AutomationResult.Failed("cancelled")
+                is MacroState.Cancelled -> AutomationResult.Failed("접근성 실행 중단: ${terminal.reason}")
                 else -> AutomationResult.Failed("runtime became idle before completion")
             }
         } catch (timeout: kotlinx.coroutines.TimeoutCancellationException) {
